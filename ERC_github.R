@@ -20,6 +20,7 @@ library(vegan)
 library(ape)
 library(picante)
 library(phytools)
+library(FD)
 
 ##simulate X species with three traits
 
@@ -129,6 +130,9 @@ for (i in 1:5){
 
 CM <- t(CM)#picante has species as columns
 picante::pd(CM, arcDen)#get FD of each island
+#Functional richness
+FF <- FD::dbFD(x = xx3, a = CM, w.abun = FALSE, stand.x = TRUE)
+
 
 #sar z value
 sarDf <- data.frame("A" = ar, "S" = rowSums(CM)[2:6])
@@ -208,6 +212,8 @@ for (i in 1:5){
 
 CM_Ex <- t(CM_Ex)#picante has species as columns
 picante::pd(CM_Ex, arcDen_Ex)#get FD of each island
+#Functional richness
+FF_Ex <- FD::dbFD(x = xx3_Ex , a = CM_Ex , w.abun = FALSE, stand.x = TRUE)
 
 #sar z value
 sarDf_Ex <- data.frame("A" = ar, "S" = rowSums(CM_Ex)[2:6])
