@@ -96,7 +96,7 @@ islFull <- lapply(isl, function(x){
   xx2
 })
 
-##make dendogram for each island as tree object
+##make dendogram for each island as a tree object
 dendo <- function(x){
   r4 <- apply(x, 2, scale)
   rownames(r4) <- rownames(x)
