@@ -9,10 +9,8 @@
 
 
 ####PACKAGES
-require(vegan)
-require(ape)
 require(FD)
-require(picante)
+require(picante) # also loads vegan and ape
 require(BAT)
 require(EcoSimR)
 require(sars)
@@ -28,7 +26,7 @@ require(plotrix)
 SIE <- function(s, isl){
  ui <- unlist(isl)
  uis <- sum(ui == s)
- res <- ifelse(uis == 1, TRUE, FALSE)
+ res <- uis == 1
  return(res)
 }
 
