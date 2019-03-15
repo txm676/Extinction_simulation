@@ -65,6 +65,40 @@ getk = function(areas, method = "SAR") {
     }
 }
 
+compete = function(patches) {
+    patches
+}
+
+colonise = function(species, patches) {
+    patches
+}
+
+speciate = function(patches, rate) {
+    for (p in 1:length(patches)) {
+        for (s in 1:length(patches[[p]]$species)) {
+            if (runif(1) <= rate) {
+                sptr <- xx[sp, ]#get species trait data
+                ##ensure no traits are negative or 0 values
+                repeat{
+                    rr <- rnorm(2, 0, 0.8)
+                    sptr[c(1, 3)] <- sptr[c(1, 3)] + rr #for body size and beak add random noise
+                    if (all(sptr[c(1, 3)] > 0)) break
+                }
+                sptr[2] <- sptr[2] - (sptr[2] * 0.1)#for dispersal - reduce ##LL: too much assumption?
+                if (any(sptr == 0)) stop("speciation error")
+                xx <- rbind(xx, sptr)
+                dum <- c(dum, nrow(xx))#add new speciated species to vector of names
+            }
+        }
+    }
+    patches
+}
+        
+            
+disperse = function(patches, species_pool = NULL) {
+    patches
+}
+
 ##############################################################
 ###MAIN FUNCTION###########################################
 ################################################################
@@ -96,6 +130,13 @@ Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
     isl <- vector("list", length = 5)#list to put island species in
     ar <- c(0.1, 2, 4, 10, 50)#island areas
     k <- getk(ar, "SAR")
+
+    isl = colonise(isl, xx)
+    isl = compete(isl)
+    isl = speciate(isl)
+    isl = compete(isl)
+    isl = disperse(isl, xx)
+    isl = compete(isl)
 
     j <- 0
 
