@@ -57,6 +57,14 @@ dendo <- function(x){
     a6
 }
 
+getk = function(areas, method = "SAR") {
+    if (method == "SAR") {
+        k = vapply(areas, function(x) 20 * x ^ 0.25, FUN.VALUE = numeric(1))  #z = 0.25, c = 20
+        k = ceiling(k)#carrying capacity
+    } else {
+    }
+}
+
 ##############################################################
 ###MAIN FUNCTION###########################################
 ################################################################
@@ -87,8 +95,7 @@ Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
     ##create islands
     isl <- vector("list", length = 5)#list to put island species in
     ar <- c(0.1, 2, 4, 10, 50)#island areas
-    k <-  vapply(ar, function(x) 20 * x ^ 0.25, FUN.VALUE = numeric(1))  #z = 0.25, c = 20
-    k <- ceiling(k)#carrying capacity
+    k <- getk(ar, "SAR")
 
     j <- 0
 
@@ -190,8 +197,7 @@ Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
 
     ##c-score
     ##EcoSimR::c_score(t(CM))#EcoSimR has sites as columns
-    sp <- ifelse(verb, FALSE, TRUE)
-    ES <- EcoSimR::cooc_null_model(t(CM), algo = "sim9", metric = "c_score", nReps = 1000, suppressProg = sp)#sim9 is curveball of Strona
+    ES <- EcoSimR::cooc_null_model(t(CM), algo = "sim9", metric = "c_score", nReps = 1000, suppressProg = !verb)#sim9 is curveball of Strona
     ##get P-values: from ecosim code
     nullmodObj <- ES
     if (nullmodObj$Obs > max(nullmodObj$Sim)){
@@ -211,7 +217,7 @@ Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
     ##summary(NM)
 
     ##beta-diversity (functional) - BAT has species as columns
-    resL[[4]] <- BAT::beta.multi(CM, arcDen)#look at replacement??
+    resL[[4]] <- BAT::beta.multi(CM, arcDen)#look at replacement?? ##LL: vegan::betadiver or even zeta diversity?
 
     ##sar z value
     sarDf <- data.frame("A" = ar, "S" = rowSums(CM)[2:6])
@@ -238,7 +244,7 @@ Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
     repeat{
         for (i in 1:5){
             dum <- islFull_Ex[[i]]
-            if (nrow(dum) == 1) next #always keep 1 sp on an island
+            if (nrow(dum) == 1) next #always keep 1 sp on an island ##LL: why?
             ##sample random sp from ith island weighted by body size
             sdum <- sample(1:nrow(dum), 1, prob = dum[, 1])
             samSp <- dum[sdum, , drop = FALSE]
