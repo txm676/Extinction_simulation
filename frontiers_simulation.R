@@ -59,10 +59,14 @@ dendo <- function(x){
 
 getk = function(areas, method = "SAR") {
     if (method == "SAR") {
-        k = vapply(areas, function(x) 20 * x ^ 0.25, FUN.VALUE = numeric(1))  #z = 0.25, c = 20
-        k = ceiling(k)#carrying capacity
-    } else {
+        k = 20 * areas ^ 0.25  #z = 0.25, c = 20
+        k = ceiling(k) #carrying capacity
+    } else if (method == "habitats") {
+        k = areas^(3/2) # k ~ volume of islands
+    } else if (method == "mass") {
+        k = areas*1000 # how much mass an island can carry
     }
+    k
 }
 
 compete = function(patches) {
@@ -70,6 +74,9 @@ compete = function(patches) {
 }
 
 colonise = function(species, patches) {
+    for (p in length(patches)) {
+        s = sample(1:nrow(species))
+    }
     patches
 }
 
@@ -119,23 +126,23 @@ disperse = function(patches, species_pool = NULL) {
 
 Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
     
-    xx <- matrix(nrow = 100, ncol = 3)
-    colnames(xx) <- c("BS", "D", "Beak")
+    speciespool <- matrix(nrow = 100, ncol = 4)
+    colnames(speciespool) <- c("BS", "D", "Beak", "Island")
 
-    xx[, 1] <- rgamma(nrow(xx), 1)#body size
-    xx[, 2] <- rbeta(nrow(xx), 0.9, 1.4)#dispersal
-    xx[, 3] <- runif(nrow(xx), 1, 8)#beak shape
+    speciespool[, 1] <- rgamma(nrow(speciespool), 1)#body size
+    speciespool[, 2] <- rbeta(nrow(speciespool), 0.9, 1.4)#dispersal
+    speciespool[, 3] <- runif(nrow(speciespool), 1, 8)#beak shape
+    speciespool[, 4] <- 0 # all mainland species
 
     ##create islands
     isl <- vector("list", length = 5)#list to put island species in
     ar <- c(0.1, 2, 4, 10, 50)#island areas
     k <- getk(ar, "SAR")
 
-    isl = colonise(isl, xx)
-    isl = compete(isl)
+    isl = colonise(isl, speciespool)
     isl = speciate(isl)
     isl = compete(isl)
-    isl = disperse(isl, xx)
+    isl = disperse(isl, speciespool)
     isl = compete(isl)
 
     j <- 0
