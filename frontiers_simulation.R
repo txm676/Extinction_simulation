@@ -69,6 +69,11 @@ getk = function(areas, method = "SAR") {
     k
 }
 
+getpopmass = function(bodymass) {
+    density = bodymass ^ -0.22
+    density * bodymass
+}
+
 compete = function(patches) {
     patches
 }
