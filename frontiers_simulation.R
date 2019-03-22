@@ -169,73 +169,11 @@ Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
     isl <- vector("list", length = 5)#list to put island species in
     ar <- c(0.1, 2, 4, 10, 50)#island areas
 
+    ## metacommunity dynamics:
     isl = colonise(ar, speciespool)
     isl = speciate(speciespool, isl, 0.1)
     isl = disperse(isl, speciespool)
     isl = compete(isl, speciespool, ar)
-
-    j <- 0
-
-    ##run island colonisation process
-    repeat{
-        for (i in 1:length(isl)){
-            if (length(isl[[i]]) == k[i]) next()
-            dum <- isl[[i]]#vector of species on an island
-            ##select whether immigrant (1) or speciation event (0)
-            v <- rbinom(1, 1, 0.9)
-            if (length(dum) == 0 || v == 1){ #if immigration
-                ##select if immigrant from pool or other island (50% probability)
-                i2 <- rbinom(1, 1, 0.5)
-                if (length(dum) == 0 || i2 == 1){ #if immigration from pool
-                    d <- sample(1:100, 1, prob = xx[1:100,2])#pick a species weighted by dispersal ability (prob does not have to be 0-1)
-                    if (d %in% dum) next #if already on island skip
-                    ##establishment probability based on beak shape - BS combination
-                    xDum <- rbind(xx[dum, ], xx[d, , drop = FALSE])[ ,c(1, 3)]
-                    if (!is.null(dum)){#if null there is no species currently on island so no competition
-                        est <- comp(xx, s = xDum)#see internal functions
-                        if (est == 0) next#if competitive establishment fails, skip
-                    }
-                    dum <- c(dum, d)
-                } else {#else dispersal from a different island
-                    wi <- 1:5
-                    wi2 <- wi[-i]#vector of island numbers excl. i
-                    si <- sample(wi2, 1)#pick one island at random (
-                    ins <- isl[[si]] #species numbers on the si'th island
-                    xxi <- xx[ins, , drop = FALSE]#subset the xx matrix to just have species on island si
-                    ##sample a species from this subset weighted by dispersal ability
-                    di <- sample(1:nrow(xxi), 1, prob = xxi[, 2])
-                    d <- ins[di]#work out which species this sample refers to
-                    if (d %in% dum) next #if already on island skip
-                    dum <- c(dum, d)
-                }
-            } else { #if speciation
-                if (length(dum) == 1){#if only species on island just pick that
-                    sp <- dum
-                } else { 
-                    sp <- sample(dum, 1)#sample a random species
-                }#eo if
-                sptr <- xx[sp, ]#get species trait data
-                ##ensure no traits are negative or 0 values
-                repeat{
-                    rr <- rnorm(2, 0, 0.8)
-                    sptr[c(1, 3)] <- sptr[c(1, 3)] + rr #for body size and beak add random noise
-                    if (all(sptr[c(1, 3)] > 0)) break
-                }
-                sptr[2] <- sptr[2] - (sptr[2] * 0.1)#for dispersal - reduce 
-                if (any(sptr == 0)) stop("speciation error")
-                xx <- rbind(xx, sptr)
-                dum <- c(dum, nrow(xx))#add new speciated species to vector of names
-            }#eo else
-            
-            isl[[i]] <- dum #the species names on the ith island
-        }#eo for
-        ##cat(length(isl[[5]]), "\n")
-        j <- j + 1
-        if (all(vapply(isl, length, FUN.VALUE = numeric(1)) == k)) break
-        if (j > 1000) return("NA") #in case simulation gets stuck
-    }#eo repeat
-
-    if (!all(vapply(isl, length, FUN.VALUE = numeric(1)) == k)) stop("richness does not equal k")
 
     ##create list with the full trait matrix for each island
     islFull <- lapply(isl, function(x){
