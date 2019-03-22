@@ -49,7 +49,7 @@ getk = function(areas, method = "SAR") {
     } else if (method == "habitats") {
         k = areas^(3/2) # k ~ volume of islands
     } else if (method == "mass") {
-        k = areas*1000 # how much mass an island can carry
+        k = areas*2 # how much mass an island can carry
     }
     k
 }
@@ -59,28 +59,53 @@ getpopmass = function(bodymass) {
     density * bodymass
 }
 
+getdistances = function(species) {
+        distmat = as.matrix(dist(species))
+        distmat[upper.tri(distmat)] = 0
+        dists = cbind(which(distmat != 0, arr.ind = T), value = distmat[distmat != 0])
+        dists = dists[order(dists[, 'value']),]
+        dists
+}
+
+## this is really unefficient:
 compete = function(patches, species, areas) {
     k = getk(areas, "mass")
-    popmasses = getpopmass(species$BS)
+    popmasses = getpopmass(species[, 'BS'])
     for (p in 1:length(patches)) {
-        while (sum(popmasses[patches[[p]]]) > k[p]) {
-            dists = as.matrix(dist(species[patches[p]]))
-            victim = sample(which(dists == min(dists), arr.ind=T)[1,], 1)
+        dists = getdistances(species[patches[[p]]])
+        count = 1
+        while (sum(popmasses[patches[[p]]]) > k[p]) {            
+            if(count > nrow(dists)) {
+                dists = getdistances(species[patches[[p]]])
+                count = 1
+            }
+            while(!all(dists[count, 1:2] %in% patches[[p]]) & count < nrow(dists)) {
+                count = count + 1
+            }
+            if(count > nrow(dists)) {
+                dists = getdistances(species[patches[[p]]])
+                count = 1
+            }
+            victim = sample(dists[count, 1:2], 1)
             patches[[p]] = patches[[p]][patches[[p]] != victim]
+            count = count + 1
         }
     }
     patches
 }
 
-colonise = function(areas, species, method = "mass") {
-    patches = list()
-    for (a in 1:length(areas)) {
+colonise = function(patches, species, areas, method = "mass") {
+    for(a in 1:length(areas)) {
         remaining = getk(areas[a], method)
-        while (remaining > 0) {
-            s = sample(1:nrow(species)[-patches[[a]]])
+        while(remaining > 0) {
+            if(length(patches[[a]]) == 0) {
+                s = sample(1:nrow(species), 1)
+            } else {
+                s = sample((1:nrow(species))[-patches[[a]]], 1)
+            }                
             patches[[a]] = c(patches[[a]], s)
             if (method == "mass") {
-                popsize = getpopmass(species$BS[s])
+                popsize = getpopmass(species[s, 'BS'])
             } else {
                 popsize = 1
             }
@@ -90,23 +115,23 @@ colonise = function(areas, species, method = "mass") {
     patches
 }
 
-speciate = function(species, patches, rate) {
+speciate = function(patches, species, rate) {
     for (p in 1:length(patches)) {
         for (s in 1:length(patches[[p]])) {
             if (runif(1) <= rate) {
-                traits <- species[sp, ]
+                traits <- species[s, ]
                 ##ensure no traits are negative or 0 values
-                while (any(trait <= 0)) {
-                    rr <- rnorm(2, 0, 0.8)
-                    sptr[c(1, 3)] <- sptr[c(1, 3)] + rr #for body size and beak add random noise
-                    sptr[2] <- sptr[2] - (sptr[2] * rnorm(1, 0, 0.1))#for dispersal - reduce ##LL: too much assumption?
+                while (any(traits <= 0)) {
+                    newvalues <- rnorm(2, 0, 0.8)
+                    traits[c(1, 3)] <- traits[c(1, 3)] + newvalues #for body size and beak add random noise
+                    traits[2] <- traits[2] - (traits[2] * rnorm(1, 0, 0.1))#for dispersal - reduce ##LL: too much assumption?
                 }
                 species <- rbind(species, traits)
                 patches[[p]] <- c(patches[[p]], nrow(species))
             }
         }
     }
-    patches
+    list(patches, species)
 }
         
             
@@ -114,10 +139,11 @@ disperse = function(patches, species = NULL) {
     for (p in 1:length(patches)) {
         s = 1
         while (s <= length(patches[[p]])) {
-            if (runif(1) <= species$D[s]) {
-            target <- sample(1:5, 1) # picking origin == failed dispersal
-            patches[[target]] = c(patches[[target]], s)
-            s = s + 1
+            if (runif(1) <= species[s, 'D']) {
+                target <- sample(1:5, 1) # picking origin == failed dispersal
+                patches[[target]] = c(patches[[target]], s)
+                s = s + 1
+            }
         }
     }
     lapply(patches, unique)
@@ -143,8 +169,8 @@ disperse = function(patches, species = NULL) {
 
 Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
     
-    speciespool <- matrix(nrow = 100, ncol = 4)
-    colnames(speciespool) <- c("BS", "D", "Beak", "Island")
+    speciespool <- matrix(nrow = 200, ncol = 3)
+    colnames(speciespool) <- c("BS", "D", "Beak")
 
     speciespool[, 1] <- rgamma(nrow(speciespool), 1)#body size
     speciespool[, 2] <- rbeta(nrow(speciespool), 0.9, 1.4)#dispersal
@@ -155,8 +181,10 @@ Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
     ar <- c(0.1, 2, 4, 10, 50)#island areas
 
     ## metacommunity dynamics:
-    isl = colonise(ar, speciespool)
-    isl = speciate(speciespool, isl, 0.1)
+    isl = colonise(isl, speciespool, ar)
+    radiation = speciate(isl, speciespool, 0.1)
+    isl = radiation[[1]]
+    speciespool = radiation[[2]]
     isl = disperse(isl, speciespool)
     isl = compete(isl, speciespool, ar)
 
