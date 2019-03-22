@@ -70,36 +70,54 @@ getk = function(areas, method = "SAR") {
 }
 
 getpopmass = function(bodymass) {
-    density = bodymass ^ -0.22
+    density = bodymass ^ -0.22 # from Russo et al. 2003 AmNat
     density * bodymass
 }
 
-compete = function(patches) {
-    patches
-}
-
-colonise = function(species, patches) {
-    for (p in length(patches)) {
-        s = sample(1:nrow(species))
+compete = function(patches, species, areas) {
+    k = getk(areas, "mass")
+    popmasses = getpopmass(species$BS)
+    for (p in 1:length(patches)) {
+        while (sum(popmasses[patches[[p]]]) > k[p]) {
+            dists = as.matrix(dist(species[patches[p]]))
+            victim = sample(which(dists == min(dists), arr.ind=T)[1,], 1)
+            patches[[p]] = patches[[p]][patches[[p]] != victim]
+        }
     }
     patches
 }
 
-speciate = function(patches, rate) {
+colonise = function(areas, species, method = "mass") {
+    patches = list()
+    for (a in 1:length(areas)) {
+        remaining = getk(areas[a], method)
+        while (remaining > 0) {
+            s = sample(1:nrow(species)[-patches[[a]]])
+            patches[[a]] = c(patches[[a]], s)
+            if (method == "mass") {
+                popsize = getpopmass(species$BS[s])
+            } else {
+                popsize = 1
+            }
+            remaining = remaining - popsize
+        }
+    }
+    patches
+}
+
+speciate = function(species, patches, rate) {
     for (p in 1:length(patches)) {
-        for (s in 1:length(patches[[p]]$species)) {
+        for (s in 1:length(patches[[p]])) {
             if (runif(1) <= rate) {
-                sptr <- xx[sp, ]#get species trait data
+                traits <- species[sp, ]
                 ##ensure no traits are negative or 0 values
-                repeat{
+                while (any(trait <= 0)) {
                     rr <- rnorm(2, 0, 0.8)
                     sptr[c(1, 3)] <- sptr[c(1, 3)] + rr #for body size and beak add random noise
-                    if (all(sptr[c(1, 3)] > 0)) break
+                    sptr[2] <- sptr[2] - (sptr[2] * rnorm(1, 0, 0.1))#for dispersal - reduce ##LL: too much assumption?
                 }
-                sptr[2] <- sptr[2] - (sptr[2] * 0.1)#for dispersal - reduce ##LL: too much assumption?
-                if (any(sptr == 0)) stop("speciation error")
-                xx <- rbind(xx, sptr)
-                dum <- c(dum, nrow(xx))#add new speciated species to vector of names
+                species <- rbind(species, traits)
+                patches[[p]] <- c(patches[[p]], nrow(species))
             }
         }
     }
@@ -107,8 +125,17 @@ speciate = function(patches, rate) {
 }
         
             
-disperse = function(patches, species_pool = NULL) {
-    patches
+disperse = function(patches, species = NULL) {
+    for (p in 1:length(patches)) {
+        s = 1
+        while (s <= length(patches[[p]])) {
+            if (runif(1) <= species$D[s]) {
+            target <- sample(1:5, 1) # picking origin == failed dispersal
+            patches[[target]] = c(patches[[target]], s)
+            s = s + 1
+        }
+    }
+    lapply(patches, unique)
 }
 
 ##############################################################
@@ -137,18 +164,15 @@ Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
     speciespool[, 1] <- rgamma(nrow(speciespool), 1)#body size
     speciespool[, 2] <- rbeta(nrow(speciespool), 0.9, 1.4)#dispersal
     speciespool[, 3] <- runif(nrow(speciespool), 1, 8)#beak shape
-    speciespool[, 4] <- 0 # all mainland species
 
     ##create islands
     isl <- vector("list", length = 5)#list to put island species in
     ar <- c(0.1, 2, 4, 10, 50)#island areas
-    k <- getk(ar, "SAR")
 
-    isl = colonise(isl, speciespool)
-    isl = speciate(isl)
-    isl = compete(isl)
+    isl = colonise(ar, speciespool)
+    isl = speciate(speciespool, isl, 0.1)
     isl = disperse(isl, speciespool)
-    isl = compete(isl)
+    isl = compete(isl, speciespool, ar)
 
     j <- 0
 
