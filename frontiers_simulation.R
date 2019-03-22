@@ -30,21 +30,6 @@ SIE <- function(s, isl){
     return(res)
 }
 
-##internal function that reverse order of numbers in a vector
-##rank_vec <- function(x){
-                                        #return(1 -x)
-##}
-
-##internal competition function
-comp <- function(xx = xx, s = xDum){
-    xx7 <- xx[, c(1,3)]#just want BS and body size
-    d7 <- max(dist(xx7))#calculate pairwise euclidean distance between all species in pool and take maximum
-    s7 <- as.matrix(dist(s))#calculate pairwise distance between all species on ith island and the randomly chosen sp
-    ds7 <- min(s7[s7 > 0])#minimum distance between random sp and species already on ith island
-    dd7 <- ifelse(ds7 > d7, 1, ds7 / d7)#in case the new species is a recently speciated species 
-    r7 <- rbinom(1, 1, dd7)#establishment success with prob being min dist / max dist of all species in pool
-    return(r7)
-}
 
 ##make dendogram for each island as tree object
 dendo <- function(x){
