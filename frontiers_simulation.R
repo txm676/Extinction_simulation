@@ -171,24 +171,25 @@ disperse = function(patches, species = NULL) {
 
 Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
     
-    speciespool <- matrix(nrow = 200, ncol = 3)
-    colnames(speciespool) <- c("BS", "D", "Beak")
-
-    speciespool[, 1] <- rgamma(nrow(speciespool), 1)#body size
-    speciespool[, 2] <- rbeta(nrow(speciespool), 0.9, 1.4)#dispersal
-    speciespool[, 3] <- runif(nrow(speciespool), 1, 8)#beak shape
+    species <- matrix(nrow = 200, ncol = 3)
+    colnames(species) <- c("BS", "D", "Beak")
+    rownames(species) = 1:nrow(species)
+    
+    species[, 1] <- rgamma(nrow(species), 1)#body size
+    species[, 2] <- rbeta(nrow(species), 0.9, 1.4)#dispersal
+    species[, 3] <- runif(nrow(species), 1, 8)#beak shape
 
     ##create islands
     isl <- vector("list", length = 5)#list to put island species in
     ar <- c(0.1, 2, 4, 10, 50)#island areas
 
     ## metacommunity dynamics:
-    isl = colonise(isl, speciespool, ar)
-    radiation = speciate(isl, speciespool, 0.1)
+    isl = colonise(isl, species, ar)
+    radiation = speciate(isl, species, 0.1)
     isl = radiation[[1]]
-    speciespool = radiation[[2]]
-    isl = disperse(isl, speciespool)
-    isl = compete(isl, speciespool, ar)
+    species = radiation[[2]]
+    isl = disperse(isl, species)
+    isl = compete(isl, species, ar)
 
     ##create list with the full trait matrix for each island
     islFull <- lapply(isl, function(x){
