@@ -72,18 +72,18 @@ compete = function(patches, species, areas) {
     k = getk(areas, "mass")
     popmasses = getpopmass(species[, 'BS'])
     for (p in 1:length(patches)) {
-        dists = getdistances(species[patches[[p]]])
+        dists = getdistances(species[patches[[p]],])
         count = 1
         while (sum(popmasses[patches[[p]]]) > k[p]) {            
             if(count > nrow(dists)) {
-                dists = getdistances(species[patches[[p]]])
+                dists = getdistances(species[patches[[p]],])
                 count = 1
             }
             while(!all(dists[count, 1:2] %in% patches[[p]]) & count < nrow(dists)) {
                 count = count + 1
             }
             if(count > nrow(dists)) {
-                dists = getdistances(species[patches[[p]]])
+                dists = getdistances(species[patches[[p]],])
                 count = 1
             }
             victim = sample(dists[count, 1:2], 1)
