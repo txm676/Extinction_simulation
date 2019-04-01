@@ -60,14 +60,15 @@ getpopmass = function(bodymass) {
 }
 
 getdistances = function(species) {
-        distmat = as.matrix(dist(species))
-        distmat[upper.tri(distmat)] = 0
-        dists = cbind(which(distmat != 0, arr.ind = T), value = distmat[distmat != 0])
-        dists = dists[order(dists[, 'value']),]
-        dists
+    distmat = as.matrix(dist(species))
+    distmat[upper.tri(distmat)] = 0
+    id = expand.grid(as.numeric(rownames(distmat)), as.numeric(colnames(distmat)))
+    dists = cbind(id , distance=c(distmat))
+    dists = dists[dists$distance != 0,]
+    dists = dists[order(dists[, 'distance']),]
+    dists
 }
 
-## this is really unefficient:
 compete = function(patches, species, areas) {
     k = getk(areas, "mass")
     popmasses = getpopmass(species[, 'BS'])
@@ -131,6 +132,7 @@ speciate = function(patches, species, rate) {
             }
         }
     }
+    rownames(species) = 1:nrow(species)
     list(patches, species)
 }
         
