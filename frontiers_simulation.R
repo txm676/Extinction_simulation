@@ -33,13 +33,15 @@ SIE <- function(s, isl){
 
 ##make dendogram for each island as tree object
 dendo <- function(x){
-    r4 <- apply(x, 2, scale)
-    rownames(r4) <- rownames(x)
-    a4 <- vegan::vegdist(r4,method = "euclidean")
-    a5 <- hclust(a4, method = "average")
-    a6 <- ape::as.phylo(a5)
-    a6$tip.label <- rownames(r4) 
-    a6
+    if (nrow(x) > 1) {
+        r4 <- apply(x, 2, scale)
+        rownames(r4) <- rownames(x)
+        a4 <- vegan::vegdist(r4,method = "euclidean")
+        a5 <- hclust(a4, method = "average")
+        a6 <- ape::as.phylo(a5)
+        a6$tip.label <- rownames(r4) 
+        a6
+    }
 }
 
 getk = function(areas, method = "SAR") {
@@ -73,24 +75,34 @@ compete = function(patches, species, areas) {
     k = getk(areas, "mass")
     popmasses = getpopmass(species[, 'BS'])
     for (p in 1:length(patches)) {
-        dists = getdistances(species[patches[[p]],])
-        count = 1
-        while (sum(popmasses[patches[[p]]]) > k[p]) {            
-            if(count > nrow(dists)) {
-                dists = getdistances(species[patches[[p]],])
-                count = 1
-            }
-            while(!all(dists[count, 1:2] %in% patches[[p]]) & count < nrow(dists)) {
-                count = count + 1
-            }
-            if(count > nrow(dists)) {
-                dists = getdistances(species[patches[[p]],])
-                count = 1
-            }
-            victim = sample(dists[count, 1:2], 1)
-            patches[[p]] = patches[[p]][patches[[p]] != victim]
-            count = count + 1
+        if (length(patches[[p]]) > 1) {
+            dists = getdistances(species[patches[[p]],])
         }
+        count = 1
+        while (sum(popmasses[patches[[p]]]) > k[p]) {
+            print(paste("capacity:", sum(popmasses[patches[[p]]]), "/", k[p]))
+            print(paste("community:", paste(patches[[p]], collapse=" ")))
+            if (length(patches[[p]]) > 1) {
+                if(count > nrow(dists)) {
+                    dists = getdistances(species[patches[[p]],])
+                    count = 1
+                }
+                while(!all(dists[count, 1:2] %in% patches[[p]]) & count < nrow(dists)) {
+                    count = count + 1
+                }
+                if(count > nrow(dists)) {
+                    dists = getdistances(species[patches[[p]],])
+                    count = 1
+                }
+                victim = as.numeric(sample(dists[count, 1:2], 1))
+                print(paste("victim:", paste(dists[count, 1:2], collapse=" "), ":", victim, typeof(victim)))
+                patches[[p]] = patches[[p]][patches[[p]] != victim]
+                count = count + 1
+            } else {
+                patches[[p]] = patches[[p]][NULL]
+            }
+        }
+        print(patches[[p]])
     }
     patches
 }
@@ -113,7 +125,7 @@ colonise = function(patches, species, areas, method = "mass") {
             remaining = remaining - popsize
         }
     }
-    patches
+    lapply(patches, unique)
 }
 
 speciate = function(patches, species, rate) {
@@ -121,6 +133,9 @@ speciate = function(patches, species, rate) {
         for (s in 1:length(patches[[p]])) {
             if (runif(1) <= rate) {
                 traits <- species[s, ]
+                newvalues <- rnorm(2, 0, 0.8)
+                traits[c(1, 3)] <- traits[c(1, 3)] + newvalues #for body size and beak add random noise
+                traits[2] <- traits[2] - (traits[2] * rnorm(1, 0, 0.1))#for dispersal - reduce ##LL: too much assumption?
                 ##ensure no traits are negative or 0 values
                 while (any(traits <= 0)) {
                     newvalues <- rnorm(2, 0, 0.8)
@@ -138,12 +153,14 @@ speciate = function(patches, species, rate) {
         
             
 disperse = function(patches, species = NULL) {
-    for (p in 1:length(patches)) {
-        s = 1
-        while (s <= length(patches[[p]])) {
-            if (runif(1) <= species[s, 'D']) {
-                target <- sample(1:5, 1) # picking origin == failed dispersal
-                patches[[target]] = c(patches[[target]], s)
+    if (length(patches) > 1) {
+        for (p in 1:length(patches)) {
+            s = 1
+            while (s <= length(patches[[p]])) {
+                if (runif(1) <= species[patches[[p]][s], 'D']) {
+                    target <- sample(1:length(patches), 1) # picking origin == failed dispersal
+                    patches[[target]] = c(patches[[target]], s)
+                }
                 s = s + 1
             }
         }
@@ -192,15 +209,18 @@ Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
     isl = compete(isl, species, ar)
 
     ##create list with the full trait matrix for each island
-    islFull <- lapply(isl, function(x){
-        species2 <- species[x, ]
-        rownames(species2) <- x
-        species2
-    })
+    islFull <- lapply(isl, function(x) {
+        if (length(species[x]) == ncol(species)) {
+            species2 = t(as.matrix(species[x, ]))
+        } else {
+            species2 = species[x, ]
+        }
+        if (length(x) > 0) rownames(species2) = x
+        species2})
+    print(islFull)
+    dendz <- lapply(islFull, function(x) {dendo(x)})
 
-    dendz <- lapply(islFull, function(x){dendo(x)})
-
-    ##make archipelago dataset and dendogram
+        ##make archipelago dataset and dendogram
     allsp <- unlist(lapply(islFull, rownames))
     allsp2 <- unique(as.numeric(allsp))
 
@@ -209,11 +229,11 @@ Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
     arcDen <- dendo(species3)
 
     ##calculate PA matrix for archi and each island; calculate PD
-    CM <- matrix(0, nrow = nrow(species3), ncol = 6)
+    CM <- matrix(0, nrow = nrow(species3), ncol = 1 + length(isl))
     rownames(CM) <- rownames(species3)
-    colnames(CM) <- c("A", 1:5)
+    colnames(CM) <- c("A", 1:length(isl))
     CM[ ,1] <- 1
-    for (i in 1:5){
+    for (i in 1:length(isl)){
         dd <- isl[[i]]
         mat <- which(rownames(CM) %in% dd)
         CM[mat, (i + 1)] <- 1
