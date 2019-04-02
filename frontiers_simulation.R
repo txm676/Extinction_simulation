@@ -80,9 +80,7 @@ compete = function(patches, species, areas) {
         }
         count = 1
         while (sum(popmasses[patches[[p]]]) > k[p]) {
-            print(paste("capacity:", sum(popmasses[patches[[p]]]), "/", k[p]))
-            print(paste("community:", paste(patches[[p]], collapse=" ")))
-            if (length(patches[[p]]) > 1) {
+             if (length(patches[[p]]) > 1) {
                 if(count > nrow(dists)) {
                     dists = getdistances(species[patches[[p]],])
                     count = 1
@@ -95,14 +93,12 @@ compete = function(patches, species, areas) {
                     count = 1
                 }
                 victim = as.numeric(sample(dists[count, 1:2], 1))
-                print(paste("victim:", paste(dists[count, 1:2], collapse=" "), ":", victim, typeof(victim)))
                 patches[[p]] = patches[[p]][patches[[p]] != victim]
                 count = count + 1
             } else {
                 patches[[p]] = patches[[p]][NULL]
             }
         }
-        print(patches[[p]])
     }
     patches
 }
