@@ -184,7 +184,7 @@ disperse = function(patches, species = NULL) {
 
 Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
     
-    species <- matrix(nrow = 200, ncol = 3)
+    species <- matrix(nrow = 300, ncol = 3)
     colnames(species) <- c("BS", "D", "Beak")
     rownames(species) = 1:nrow(species)
     
@@ -194,7 +194,7 @@ Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
 
     ##create islands
     isl <- vector("list", length = 5)#list to put island species in
-    ar <- c(0.1, 2, 4, 10, 50)#island areas
+    ar <- c(10, 20, 40, 80, 100)#island areas
 
     ## metacommunity dynamics:
     isl = colonise(isl, species, ar)
@@ -202,7 +202,8 @@ Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
     isl = radiation[[1]]
     species = radiation[[2]]
     isl = disperse(isl, species)
-    isl = compete(isl, species, ar)
+    isl = tryCatch(compete(isl, species, ar), error = function(e) NA)
+    if (length(isl) == 1) return(NA)
 
     ##create list with the full trait matrix for each island
     islFull <- lapply(isl, function(x) {
@@ -213,7 +214,7 @@ Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
         }
         if (length(x) > 0) rownames(species2) = x
         species2})
-    print(islFull)
+   # print(islFull)
     dendz <- lapply(islFull, function(x) {dendo(x)})
 
         ##make archipelago dataset and dendogram
@@ -343,7 +344,7 @@ Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
 
     ##c-score
     ##EcoSimR::c_score(t(CM_Ex))#EcoSimR has sites as columns
-    ES_Ex <- EcoSimR::cooc_null_model(t(CM_Ex), algo = "sim9", metric = "c_score", nReps = 1000, suppressProg = sp)#sim9 is curveball of Strona
+    ES_Ex <- EcoSimR::cooc_null_model(t(CM_Ex), algo = "sim9", metric = "c_score", nReps = 1000, suppressProg = !verb)#sim9 is curveball of Strona
     ##get P-values: from ecosim code
     nullmodObj <- ES_Ex
     if (nullmodObj$Obs > max(nullmodObj$Sim)){
@@ -398,7 +399,30 @@ tes <- Leo(plot = TRUE)
 
 ##Run Leo N times, create a list of lists and then format it to provide average results with standard error
 
-Leo2 <- replicate(100, Leo())
+
+library(foreach)
+library(doParallel)
+library(cluster)
+
+cores = 10
+cl = makeCluster(cores); on.exit(stopCluster(cl))
+registerDoParallel(cl)
+i = 1 #Dummy line for RStudio
+
+Leo2 = foreach(i=seq(from=1, to=100, by=1))  %dopar% { 
+  require(FD)
+  require(picante) # also loads vegan and ape
+  require(BAT)
+  require(EcoSimR)
+  require(sars)
+  require(CommEcol)
+  require(phytools)
+  require(plotrix)
+  
+  Leo()
+}
+
+#Leo2 <- replicate(100, Leo())
 
 ##save(Leo2, file = "Leo2.R")
 
