@@ -33,13 +33,15 @@ SIE <- function(s, isl){
 
 ##make dendogram for each island as tree object
 dendo <- function(x){
-    r4 <- apply(x, 2, scale)
-    rownames(r4) <- rownames(x)
-    a4 <- vegan::vegdist(r4,method = "euclidean")
-    a5 <- hclust(a4, method = "average")
-    a6 <- ape::as.phylo(a5)
-    a6$tip.label <- rownames(r4) 
-    a6
+    if (nrow(x) > 1) {
+        r4 <- apply(x, 2, scale)
+        rownames(r4) <- rownames(x)
+        a4 <- vegan::vegdist(r4,method = "euclidean")
+        a5 <- hclust(a4, method = "average")
+        a6 <- ape::as.phylo(a5)
+        a6$tip.label <- rownames(r4) 
+        a6
+    }
 }
 
 getk = function(areas, method = "SAR") {
@@ -60,35 +62,42 @@ getpopmass = function(bodymass) {
 }
 
 getdistances = function(species) {
-        distmat = as.matrix(dist(species))
-        distmat[upper.tri(distmat)] = 0
-        dists = cbind(which(distmat != 0, arr.ind = T), value = distmat[distmat != 0])
-        dists = dists[order(dists[, 'value']),]
-        dists
+    distmat = as.matrix(dist(species))
+    distmat[upper.tri(distmat)] = 0
+    id = expand.grid(as.numeric(rownames(distmat)), as.numeric(colnames(distmat)))
+    dists = cbind(id , distance=c(distmat))
+    dists = dists[dists$distance != 0,]
+    dists = dists[order(dists[, 'distance']),]
+    dists
 }
 
-## this is really unefficient:
 compete = function(patches, species, areas) {
     k = getk(areas, "mass")
     popmasses = getpopmass(species[, 'BS'])
     for (p in 1:length(patches)) {
-        dists = getdistances(species[patches[[p]]])
+        if (length(patches[[p]]) > 1) {
+            dists = getdistances(species[patches[[p]],])
+        }
         count = 1
-        while (sum(popmasses[patches[[p]]]) > k[p]) {            
-            if(count > nrow(dists)) {
-                dists = getdistances(species[patches[[p]]])
-                count = 1
-            }
-            while(!all(dists[count, 1:2] %in% patches[[p]]) & count < nrow(dists)) {
+        while (sum(popmasses[patches[[p]]]) > k[p]) {
+             if (length(patches[[p]]) > 1) {
+                if(count > nrow(dists)) {
+                    dists = getdistances(species[patches[[p]],])
+                    count = 1
+                }
+                while(!all(dists[count, 1:2] %in% patches[[p]]) & count < nrow(dists)) {
+                    count = count + 1
+                }
+                if(count > nrow(dists)) {
+                    dists = getdistances(species[patches[[p]],])
+                    count = 1
+                }
+                victim = as.numeric(sample(dists[count, 1:2], 1))
+                patches[[p]] = patches[[p]][patches[[p]] != victim]
                 count = count + 1
+            } else {
+                patches[[p]] = patches[[p]][NULL]
             }
-            if(count > nrow(dists)) {
-                dists = getdistances(species[patches[[p]]])
-                count = 1
-            }
-            victim = sample(dists[count, 1:2], 1)
-            patches[[p]] = patches[[p]][patches[[p]] != victim]
-            count = count + 1
         }
     }
     patches
@@ -112,7 +121,7 @@ colonise = function(patches, species, areas, method = "mass") {
             remaining = remaining - popsize
         }
     }
-    patches
+    lapply(patches, unique)
 }
 
 speciate = function(patches, species, rate) {
@@ -120,6 +129,9 @@ speciate = function(patches, species, rate) {
         for (s in 1:length(patches[[p]])) {
             if (runif(1) <= rate) {
                 traits <- species[s, ]
+                newvalues <- rnorm(2, 0, 0.8)
+                traits[c(1, 3)] <- traits[c(1, 3)] + newvalues #for body size and beak add random noise
+                traits[2] <- traits[2] - (traits[2] * rnorm(1, 0, 0.1))#for dispersal - reduce ##LL: too much assumption?
                 ##ensure no traits are negative or 0 values
                 while (any(traits <= 0)) {
                     newvalues <- rnorm(2, 0, 0.8)
@@ -131,17 +143,20 @@ speciate = function(patches, species, rate) {
             }
         }
     }
+    rownames(species) = 1:nrow(species)
     list(patches, species)
 }
         
             
 disperse = function(patches, species = NULL) {
-    for (p in 1:length(patches)) {
-        s = 1
-        while (s <= length(patches[[p]])) {
-            if (runif(1) <= species[s, 'D']) {
-                target <- sample(1:5, 1) # picking origin == failed dispersal
-                patches[[target]] = c(patches[[target]], s)
+    if (length(patches) > 1) {
+        for (p in 1:length(patches)) {
+            s = 1
+            while (s <= length(patches[[p]])) {
+                if (runif(1) <= species[patches[[p]][s], 'D']) {
+                    target <- sample(1:length(patches), 1) # picking origin == failed dispersal
+                    patches[[target]] = c(patches[[target]], s)
+                }
                 s = s + 1
             }
         }
@@ -169,48 +184,52 @@ disperse = function(patches, species = NULL) {
 
 Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
     
-    speciespool <- matrix(nrow = 200, ncol = 3)
-    colnames(speciespool) <- c("BS", "D", "Beak")
-
-    speciespool[, 1] <- rgamma(nrow(speciespool), 1)#body size
-    speciespool[, 2] <- rbeta(nrow(speciespool), 0.9, 1.4)#dispersal
-    speciespool[, 3] <- runif(nrow(speciespool), 1, 8)#beak shape
+    species <- matrix(nrow = 200, ncol = 3)
+    colnames(species) <- c("BS", "D", "Beak")
+    rownames(species) = 1:nrow(species)
+    
+    species[, 1] <- rgamma(nrow(species), 1)#body size
+    species[, 2] <- rbeta(nrow(species), 0.9, 1.4)#dispersal
+    species[, 3] <- runif(nrow(species), 1, 8)#beak shape
 
     ##create islands
     isl <- vector("list", length = 5)#list to put island species in
     ar <- c(0.1, 2, 4, 10, 50)#island areas
 
     ## metacommunity dynamics:
-    isl = colonise(isl, speciespool, ar)
-    radiation = speciate(isl, speciespool, 0.1)
+    isl = colonise(isl, species, ar)
+    radiation = speciate(isl, species, 0.1)
     isl = radiation[[1]]
-    speciespool = radiation[[2]]
-    isl = disperse(isl, speciespool)
-    isl = compete(isl, speciespool, ar)
+    species = radiation[[2]]
+    isl = disperse(isl, species)
+    isl = compete(isl, species, ar)
 
     ##create list with the full trait matrix for each island
-    islFull <- lapply(isl, function(x){
-        xx2 <- xx[x, ]
-        rownames(xx2) <- x
-        xx2
-    })
+    islFull <- lapply(isl, function(x) {
+        if (length(species[x]) == ncol(species)) {
+            species2 = t(as.matrix(species[x, ]))
+        } else {
+            species2 = species[x, ]
+        }
+        if (length(x) > 0) rownames(species2) = x
+        species2})
+    print(islFull)
+    dendz <- lapply(islFull, function(x) {dendo(x)})
 
-    dendz <- lapply(islFull, function(x){dendo(x)})
-
-    ##make archipelago dataset and dendogram
+        ##make archipelago dataset and dendogram
     allsp <- unlist(lapply(islFull, rownames))
     allsp2 <- unique(as.numeric(allsp))
 
-    xx3 <- xx[allsp2,]
-    rownames(xx3) <- allsp2
-    arcDen <- dendo(xx3)
+    species3 <- species[allsp2,]
+    rownames(species3) <- allsp2
+    arcDen <- dendo(species3)
 
     ##calculate PA matrix for archi and each island; calculate PD
-    CM <- matrix(0, nrow = nrow(xx3), ncol = 6)
-    rownames(CM) <- rownames(xx3)
-    colnames(CM) <- c("A", 1:5)
+    CM <- matrix(0, nrow = nrow(species3), ncol = 1 + length(isl))
+    rownames(CM) <- rownames(species3)
+    colnames(CM) <- c("A", 1:length(isl))
     CM[ ,1] <- 1
-    for (i in 1:5){
+    for (i in 1:length(isl)){
         dd <- isl[[i]]
         mat <- which(rownames(CM) %in% dd)
         CM[mat, (i + 1)] <- 1
@@ -221,7 +240,7 @@ Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
     CM <- t(CM)#picante has species as columns
     resL[[1]] <- picante::pd(CM, arcDen)#get FD of each island
     ##Functional dispersion
-    resL[[2]] <- FD::dbFD(x = xx3, a = CM, w.abun = FALSE, stand.x = TRUE, messages = verb)
+    resL[[2]] <- FD::dbFD(x = species3, a = CM, w.abun = FALSE, stand.x = TRUE, messages = verb)
 
     ##c-score
     ##EcoSimR::c_score(t(CM))#EcoSimR has sites as columns
@@ -289,26 +308,26 @@ Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
                 dum <- dum[-sdum, , drop = FALSE]#just remove it from island (but still exists elsewhere)
             }#eo if
             islFull_Ex[[i]] <- dum
-            if (length(extinct) == ceiling(nrow(xx3) * th)) break
+            if (length(extinct) == ceiling(nrow(species3) * th)) break
         }#eo for
         j2 <- j2 + 1
-        if (length(extinct) == ceiling(nrow(xx3) * th)) break
+        if (length(extinct) == ceiling(nrow(species3) * th)) break
         if (j2 > 1000) return("NO")
     }#eo repeat
 
-    dead2 <- rep("Present", length = nrow(xx3))
-    dead2[which(rownames(xx3) %in% extinct)] <- "Extinct"
+    dead2 <- rep("Present", length = nrow(species3))
+    dead2[which(rownames(species3) %in% extinct)] <- "Extinct"
 
     ##make archipelago dataset and dendogram
     allsp_Ex <- unlist(lapply(islFull_Ex, rownames))
     allsp2_Ex <- unique(as.numeric(allsp_Ex))
 
-    xx3_Ex <- xx[allsp2_Ex,]
-    rownames(xx3_Ex) <- allsp2_Ex
-    arcDen_Ex <- dendo(xx3_Ex)
+    species3_Ex <- species[allsp2_Ex,]
+    rownames(species3_Ex) <- allsp2_Ex
+    arcDen_Ex <- dendo(species3_Ex)
     ##calculate PA matrix for archi and each island; calculate PD
-    CM_Ex <- matrix(0, nrow = nrow(xx3_Ex), ncol = 6)
-    rownames(CM_Ex) <- rownames(xx3_Ex)
+    CM_Ex <- matrix(0, nrow = nrow(species3_Ex), ncol = 6)
+    rownames(CM_Ex) <- rownames(species3_Ex)
     colnames(CM_Ex) <- c("A", 1:5)
     CM_Ex[ ,1] <- 1
     for (i in 1:5){
@@ -320,7 +339,7 @@ Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
     CM_Ex <- t(CM_Ex)#picante has species as columns
     resL[[7]] <- picante::pd(CM_Ex, arcDen_Ex)#get FD of each island
     ##Functional richness
-    resL[[8]] <- FD::dbFD(x = xx3_Ex , a = CM_Ex , w.abun = FALSE, stand.x = TRUE, messages = verb)#FD has species as columns
+    resL[[8]] <- FD::dbFD(x = species3_Ex , a = CM_Ex , w.abun = FALSE, stand.x = TRUE, messages = verb)#FD has species as columns
 
     ##c-score
     ##EcoSimR::c_score(t(CM_Ex))#EcoSimR has sites as columns
@@ -356,7 +375,7 @@ Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
 
     ##plot the dendogram with extinct species and extant species
     if (plot_T){
-        fmode <- as.factor(setNames(dead2,rownames(xx3)))
+        fmode <- as.factor(setNames(dead2,rownames(species3)))
 
         jpeg(paste(nam), width = 20, height = 20, units = "cm", res = 300)
         phytools::dotTree(arcDen, fmode, colors=setNames(c("blue","red"),
