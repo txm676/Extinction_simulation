@@ -103,7 +103,7 @@ compete = function(patches, species, areas) {
     patches
 }
 
-colonise = function(patches, species, areas, method = "mass") {
+colonise = function(patches, species, areas, method = "SAR") {
     for(a in 1:length(areas)) {
         remaining = getk(areas[a], method)
         while(remaining > 0) {
@@ -124,20 +124,37 @@ colonise = function(patches, species, areas, method = "mass") {
     lapply(patches, unique)
 }
 
+#internal function for use in speciate: adds random noise to the trait values
+spec_internal <- function(traits){
+  newvalues <- rnorm(2, 0, 0.8)
+  traits[c(1, 3)] <- traits[c(1, 3)] + newvalues #for body size and beak add random noise
+  #TM: the value inside the parentheses can be + or - so no longer always reduces dispersal
+  traits[2] <- traits[2] - (traits[2] * rnorm(1, 0, 0.1))#for dispersal - reduce ##LL: too much assumption?
+  return(traits)
+}
+
 speciate = function(patches, species, rate) {
     for (p in 1:length(patches)) {
         for (s in 1:length(patches[[p]])) {
             if (runif(1) <= rate) {
                 traits <- species[s, ]
-                newvalues <- rnorm(2, 0, 0.8)
-                traits[c(1, 3)] <- traits[c(1, 3)] + newvalues #for body size and beak add random noise
-                traits[2] <- traits[2] - (traits[2] * rnorm(1, 0, 0.1))#for dispersal - reduce ##LL: too much assumption?
-                ##ensure no traits are negative or 0 values
-                while (any(traits <= 0)) {
-                    newvalues <- rnorm(2, 0, 0.8)
-                    traits[c(1, 3)] <- traits[c(1, 3)] + newvalues #for body size and beak add random noise
-                    traits[2] <- traits[2] - (traits[2] * rnorm(1, 0, 0.1))#for dispersal - reduce ##LL: too much assumption?
+                dum <- spec_internal(traits)
+                #check for negative trait values; if present re-run until not present
+                if (any(dum <= 0)){
+                  while (any(dum <= 0)) dum <- spec_internal(traits)
+                  traits <- dum
+                } else {
+                  traits <- dum
                 }
+         #       newvalues <- rnorm(2, 0, 0.8)
+           #     traits[c(1, 3)] <- traits[c(1, 3)] + newvalues #for body size and beak add random noise
+            #    traits[2] <- traits[2] - (traits[2] * rnorm(1, 0, 0.1))#for dispersal - reduce ##LL: too much assumption?
+                ##ensure no traits are negative or 0 values ##TM: occasionally runs indefinitely
+         #       while (any(traits <= 0)) {
+          #          newvalues <- rnorm(2, 0, 0.8)
+           #         traits[c(1, 3)] <- traits[c(1, 3)] + newvalues #for body size and beak add random noise
+             #       traits[2] <- traits[2] - (traits[2] * rnorm(1, 0, 0.1))#for dispersal - reduce ##LL: too much assumption?
+              #  }
                 species <- rbind(species, traits)
                 patches[[p]] <- c(patches[[p]], nrow(species))
             }
@@ -425,6 +442,10 @@ Leo2 = foreach(i=seq(from=1, to=100, by=1))  %dopar% {
 #Leo2 <- replicate(100, Leo())
 
 ##save(Leo2, file = "Leo2.R")
+
+
+anyNA(Leo2)
+
 
 form_leo <- function(x = Leo2){
     
