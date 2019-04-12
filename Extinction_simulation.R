@@ -234,7 +234,7 @@ Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
    # print(islFull)
     dendz <- lapply(islFull, function(x) {dendo(x)})
 
-        ##make archipelago dataset and dendogram
+    ##make archipelago dataset and dendogram
     allsp <- unlist(lapply(islFull, rownames))
     allsp2 <- unique(as.numeric(allsp))
 
@@ -392,13 +392,24 @@ Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
                                   
     ##plot the dendogram with extinct species and extant species
     if (plot_T){
-        fmode <- as.factor(setNames(dead2,rownames(species3)))
+        #get dendogram and species list for biggest island
+        bigI <- islFull[[5]]
+        bigDen <- dendo(bigI)
+        bigSp <- rownames(bigI)
+        
+        #get species names that went extinct on largest island
+        bigE <- islFull_Ex[[5]]#sp remaining AFTER extinction
+        ESp <- rownames(bigE)
+        we <- as.numeric(which(!bigSp %in% ESp))
+        dead3 <- rep("Present", length(bigSp))
+        dead3[we] <- "Extinct"
+        
+        fmode <- as.factor(setNames(dead3, bigSp))
 
         jpeg(paste(nam), width = 20, height = 20, units = "cm", res = 300)
-        phytools::dotTree(arcDen, fmode, colors=setNames(c("blue","red"),
+        phytools::dotTree(bigDen, fmode, colors=setNames(c("blue","red"),
                                                          c("Present", "Extinct")))
         dev.off()
-
     }
 
     return(resL)
@@ -455,7 +466,7 @@ form_leo <- function(x = Leo2){
     colnames(F1ue) <- c("A", 1:5)
     
     F2 <- apply(x, 2, function(y) unlist(y[[2]][c(3, 7)]))
-    F2ue <- rbind(apply(F2, 1, mean), apply(F2, 1, plotrix::std.error))
+    F2ue <- rbind(apply(F2, 1, mean, na.rm = TRUE), apply(F2, 1, plotrix::std.error))
     
     F3 <- apply(x, 2, function(y) y[[3]])
     F3ue <- rbind(apply(F3, 1, mean), apply(F3, 1, plotrix::std.error))
@@ -480,7 +491,7 @@ form_leo <- function(x = Leo2){
     colnames(F7ue) <- c("A", 1:5)
     
     F8 <- apply(x, 2, function(y) unlist(y[[8]][c(3, 7)]))
-    F8ue <- rbind(apply(F8, 1, mean), apply(F8, 1, plotrix::std.error))
+    F8ue <- rbind(apply(F8, 1, mean, na.rm = TRUE), apply(F8, 1, plotrix::std.error))
     
     F9 <- apply(x, 2, function(y) y[[9]])
     F9ue <- rbind(apply(F9, 1, mean), apply(F9, 1, plotrix::std.error))
