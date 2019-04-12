@@ -7,55 +7,7 @@ output: md_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## ERC Simulation Method
+##  Simulation Method
 
-To illustrate the impacts of human-induced extinctions on various macroecological and biogeographical patterns on islands, I ran a simple simulation. The full R code to run the simulation and the various analyses is provided in a GitHub repository (txm676/ FIBIA_simulation).
-
-Island species filling 
-
-First, a mainland pool of 100 bird species (the choice of taxon is arbitrary; the term birds is used simply because the three modelled traits make most sense in the context of birds) was simulated. Each species in the pool had three traits: body size, dispersal ability, and beak shape. Body size values were drawn from a gamma distribution with shape and scale parameters set to 1 (i.e. a larger proportion of relatively smaller bodied species). Dispersal ability values were drawn from a Poisson distribution with the mean parameter set to 1, and beak shape values were drawn from a uniform distribution with minimum and maximum values of 1 and 8, respectively. Second, an archipelago consisting of five islands was simulated. Each of the five islands was given an area (0.1, 2, 4, 10 and 50 area units) and a carrying capacity (k). In this simulation, a very simple definition of carrying capacity is used, whereby k is the equilibrium number of species on an island. k was calculated using the power species-area relationship (SAR) model with the five island area values, and the c and z parameters set to 20 and 0.25 (both being realistic values observed in empirical island systems; see Matthews et al., 2016), respectively. This approach generated k values of 12, 24, 29, 36 and 54 in order of increasing island area. 
-
-The initial island species filling process draws on ideas from Hubbell’s (2001) neutral theory. The ith island is selected, and then a colonization event (probability 0.9) or a speciation event (probability 0.1) occurs; if there are no species currently present on the ith island, only a colonization event can occur. Colonization can occur from the mainland species pool (probability 0.5) or from any of the other islands in the archipelago (probability 0.5). In the case of the former, a species is selected from the 100 species in the pool with the probability of being selected weighted by dispersal ability; species with greater dispersal ability have more chance of colonizing an island. In case of the latter, one of the other four islands is chosen, with the probability of selection being weighted by island area. A species is then chosen from this island, with the probability of selection again being weighted by dispersal ability. In both cases, if the colonizing species is already present on the ith island, the simulation proceeds to the next step; if it is not present, it colonizes the ith island. If a speciation event occurs, a species already present on the ith island is randomly chosen. A small amount of random noise (positive or negative) is then added to the species’ body size and beak shape trait values. A small amount of positive random noise is then subtracted from the species’ dispersal ability trait value, as it is known that species often lose dispersal ability through time on islands (Whittaker & Fernández-Palacios, 2007). These new trait values are then assigned to a new species which is added to the species list of the ith island. The simulation algorithm then moves to the next island and so on, until the number of species on each island reaches the carrying capacity. To simplify the process, it is assumed there is no natural extinction on the archipelago. That is, the simulation is simply a species filling process, with the aim of providing each island with a set of species with realistic distributions of the three traits.
-
-Island biogeographical properties 
-
-When the simulation process was finished, and thus each island had a full set of species, a functional dendrogram was then constructed for each individual island and for the whole archipelago. For each island (or for the archipelago), the traits of the species on the island were standardized to have a mean of 0 and a standard deviation of 1. The species-by-standardized trait matrix for a given dataset was then converted into a distance matrix using Euclidean distance, and the distance matrix was subject to a cluster analysis (UPGMA method) to create a dendrogram (Petchey & Gaston 2002a).
-
-Using the simulated species lists for each island and the set of constructed functional dendrograms, three sets of metrics were calculated: i) the functional diversity of each island and the archipelago (using the functional diversity and functional richness metrics; Petchey & Gaston, 2002a; Villager et al., 2008), ii) the slope (z) of the power SAR model calculated using the five islands, and iii) the functional nestedness of the archipelago, calculated using the treeNODF metric (Melo et al., 2014). Functional nestedness measures the nestedness of communities, taking into account how species are related in terms of their traits (Matthews et al., 2015). treeNODF was partitioned into its two constituent components: i) S.Fraction, the proportion of treeNODF that would be observed if all species were equally related, and ii) topoNODF, the proportion of the treeNODF value due, in this case, to the functional differences between species. The resultant metric values are those associated with the undisturbed archipelago (i.e. prior to human-induced extinctions).
-
-Species extinctions following human colonization
-
-The next stage of the simulation models the colonization of the archipelago by humans, resulting in a wave of species extinctions. Following human colonization, the carrying capacity of the archipelago was reduced by 50%, i.e. half of the archipelago’s species went extinct. This process is simulated as follows. The ith island is selected and a species remaining on the island is chosen, with the probability of being chosen weighted by body size; it being assumed that larger-bodied species have a greater risk of being driven extinct by humans (Petchey & Gaston, 2002b; Whittaker & Fernandez-Palacios, 2007). This species is then lost from the ith island. If the species is a single island endemic (SIE; i.e. it is only present on the ith island) then the extinction is a global extinction and the species is removed from the archipelago’s species list; if it is not a SIE, it is simply removed from the ith island’s species list. Again, to simplify the simulation process no inter-island dispersal, and thus no rescue effect, is assumed to take place; this is not entirely unrealistic given that the impacts of humans occur at such fast rates that rescue effects are likely to have minimal effects on extinction risk. The simulation algorithm then moves on to the next island and so on, until the number of species in the archipelago has been reduced by 50%. If the number of species on an island is reduced to 1, the island cannot lose any more species (i.e. the richness remains at 1); this is to ensure that all islands can be used to calculate treeNODF. As the above extinction process results in each island losing roughly the same number of species, it means that the smaller species-poor islands lose a larger proportion of species; this is expected as smaller islands are predicted to support smaller populations of species and thus have elevated extinction rates (MacArthur & Wilson, 1967). When the extinction simulation process was finished, the three sets of metrics (functional diversity, the slope of the SAR, and treeNODF) were calculated using the species lists and dendrograms from the resultant post-colonization dataset.
-
-Results
-
-The functional dendrogram for the whole archipelago is provided in Figure 1. The species that were driven extinct following human colonization are marked (see Fig. 1). It can be seen there is a degree of autocorrelation in the identity of extinct species which is likely due to the fact that larger-bodied species were more at risk of being driven extinct by humans. Following extinctions, archipelago functional diversity (36 to 23) and functional richness (35 to 20) both decline substantially whilst the slope of the SAR increases (0.25 to 0.62). The latter observation is due to the fact that the proportion of extinctions on smaller islands is higher than on the larger islands, resulting in a steeper SAR. The total amount of functional nestedness also differs considerably (29.0 and 49.4). This latter finding is likely due to the partly deterministic nature of the extinction process in the simulations: larger-bodied species are more at risk of extinction. 
-
-Conclusions
-
-Overall, the results of this, admittedly simplistic, simulation clearly highlight how the extinction of species as a result of human actions on islands can influence our interpretation of ‘natural’ island biogeography patterns. Thus, based on these results it seems likely that many previous island biogeography studies have misinterpreted ecological patterns on islands as a result of past extinctions. This is problematic in that we may have reached erroneous conclusions on how we believe natural island communities to be structured (Whittaker & Fernandez-Palacios, 2007). As such, these results highlight the exigent need for further studies, particularly those based on the analysis of empirical data, focused on elucidating the impact of recent extinctions on island biogeographic patterns.  
-
-
-References
-
-Hubbell, S. P. (2001). The unified neutral theory of biodiversity and biogeography. Princeton: Princeton University Press.
-
-MacArthur, R. H., & Wilson, E. O. (1967). The theory of island biogeography. Princeton: Princeton University Press.
-
-Matthews, T. J., Sheard, C., Cottee-Jones, H. E. W., Bregman, T. P., Tobias, J. A., & Whittaker, R. J. (2015). Ecological traits reveal functional nestedness of bird communities in habitat islands: a global survey. Oikos, 124, 817-826.
-
-Matthews, T. J., Guilhaumon, F., Triantis, K. A., Borregaard, M. K., & Whittaker, R. J. (2016). On the form of species–area relationships in habitat islands and true islands. Global Ecology and Biogeography, 25, 847–858.
-
-Melo, A. S., Cianciaruso, M. V., & Almeida-Neto, M. (2014). treeNODF: nestedness to phylogenetic, functional and other tree-based diversity metrics. Methods in Ecology and Evolution, 5, 563-572.
-
-Petchey, O. L., & Gaston, K. J. (2002a). Functional diversity (FD), species richness and community composition. Ecology Letters, 5, 402-411.
-
-Petchey, O. L., & Gaston, K. J. (2002b). Extinction and the loss of functional diversity. Proceedings of the Royal Society of London. Series B: Biological Sciences, 269, 1721-1727.
-
-Villager, S., Mason, N. W. H., & Mouillot, D. (2008). New multidimensional functional diversity indices for a multifaceted framework in functional ecology. Ecology, 89, 2290-2301.
-
-Whittaker, R. J., & Fernandez-Palacios, J. M. (2007). Island biogeography: ecology, evolution, and conservation (2nd ed.). Oxford: Oxford University Press.
-
-New PC Git setup test2
 
 
