@@ -72,7 +72,7 @@ getdistances = function(species) {
 }
 
 compete = function(patches, species, areas) {
-    k = getk(areas, "mass")
+    k = getk(areas, "SAR")
     popmasses = getpopmass(species[, 'BS'])
     for (p in 1:length(patches)) {
         if (length(patches[[p]]) > 1) {
@@ -266,11 +266,11 @@ Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
     ##get P-values: from ecosim code
     nullmodObj <- ES
     if (nullmodObj$Obs > max(nullmodObj$Sim)){
-        LP <- (length(nullmodObj$Sim) - 1)/length(nullmodObj$Sim) 
+       LP <- (length(nullmodObj$Sim) - 1)/length(nullmodObj$Sim) 
         UP <- 1/length(nullmodObj$Sim)
     } else if (nullmodObj$Obs < min(nullmodObj$Sim)){
         LP <-  1/length(nullmodObj$Sim)
-        UP <- (length(nullmodObj$Sim) - 1)/length(nullmodObj$Sim) 
+       UP <- (length(nullmodObj$Sim) - 1)/length(nullmodObj$Sim) 
     } else{
         LP <- format(sum(nullmodObj$Obs >= nullmodObj$Sim)/length(nullmodObj$Sim))
         UP <- format(sum(nullmodObj$Obs <= nullmodObj$Sim)/length(nullmodObj$Sim))
@@ -280,19 +280,18 @@ Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
 
     resL[[3]] <- as.numeric(c(ES$Obs, mean(ES$Sim), LP, UP, ses))
     ##summary(NM)
+    
+    #taxonomic beta - BAT has species as columns
+    resL[[4]] <- BAT::beta.multi(CM)#look at replacement?? ##LL: vegan::betadiver or even zeta diversity?
 
     ##beta-diversity (functional) - BAT has species as columns
-    resL[[4]] <- BAT::beta.multi(CM, arcDen)#look at replacement?? ##LL: vegan::betadiver or even zeta diversity?
+    resL[[5]] <- BAT::beta.multi(CM, arcDen)#look at replacement?? ##LL: vegan::betadiver or even zeta diversity?
 
     ##sar z value
     sarDf <- data.frame("A" = ar, "S" = rowSums(CM)[2:6])
-    resL[[5]] <- sars::sar_power(sarDf)
+    resL[[6]] <- sars::sar_power(sarDf)
 
-    ##tree NODF
-    CM2 <- CM[2:6, ]#remove first row as this is the archipelago
-    if (any(colSums(CM2) == 0)) stop ("error A")
-    resL[[6]] <- CommEcol::treeNodf(CM2, col.tree = arcDen, order.rows = TRUE, order.cols = TRUE)$rows
-
+    
 #######HUMAN IMPACT##########################
     ##EXTINCTION PROCESS
 
@@ -378,19 +377,19 @@ Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
     ses <- format((nullmodObj$Obs - mean(nullmodObj$Sim))/sd(nullmodObj$Sim))
 
     resL[[9]] <- as.numeric(c(ES_Ex$Obs, mean(ES_Ex$Sim), LP, UP, ses))
+    
+    ##taxonomic beta - BAT has species as columns
+    resL[[10]] <- BAT::beta.multi(CM_Ex)
 
     ##beta-diversity (functional) - BAT has species as columns
-    resL[[10]] <- BAT::beta.multi(CM_Ex, arcDen_Ex)
+    resL[[11]] <- BAT::beta.multi(CM_Ex, arcDen_Ex)
 
     ##sar z value
     sarDf_Ex <- data.frame("A" = ar, "S" = rowSums(CM_Ex)[2:6])
-    resL[[11]] <- sars::sar_power(sarDf_Ex)
+    resL[[12]] <- sars::sar_power(sarDf_Ex)
 
-    ##tree NODF
-    CM2_Ex <- CM_Ex[2:6, ]#remove first row as this is the archipelago
-    if (any(colSums(CM2_Ex) == 0)) stop("error B")
-    resL[[12]] <- CommEcol::treeNodf(CM2_Ex, col.tree = arcDen_Ex, order.rows = TRUE, order.cols = TRUE)$rows
-
+    
+                                  
     ##plot the dendogram with extinct species and extant species
     if (plot_T){
         fmode <- as.factor(setNames(dead2,rownames(species3)))
@@ -465,17 +464,17 @@ form_leo <- function(x = Leo2){
     F4 <- apply(x, 2, function(y) y[[4]][ ,1])
     F4ue <- rbind(apply(F4, 1, mean), apply(F4, 1, plotrix::std.error))
     
-    F5 <- apply(x, 2, function(y) y[[5]]$par)
+    F5 <- apply(x, 2, function(y) y[[5]][ ,1])
     F5ue <- rbind(apply(F5, 1, mean), apply(F5, 1, plotrix::std.error))
     
-    F6 <- apply(x, 2, function(y) y[[6]])
+    F6 <- apply(x, 2, function(y) y[[6]]$par)
     F6ue <- rbind(apply(F6, 1, mean), apply(F6, 1, plotrix::std.error))
     
+    
     l1 <- list(F1ue, F2ue, F3ue, F4ue, F5ue, F6ue)
-    names(l1) <- c("FD", "FRIC_FDIS", "Chequer", "FuncBeta", "SAR", "treeNODF")
+    names(l1) <- c("FD", "FRIC_FDIS", "Chequer", "TaxoBeta", "FuncBeta", "SAR")
     
     ##all metrics for post-colonisation data
-    
     F7 <- apply(x, 2, function(y) y[[7]][ ,1])
     F7ue <- rbind(apply(F7, 1, mean), apply(F7, 1, plotrix::std.error))
     colnames(F7ue) <- c("A", 1:5)
@@ -490,17 +489,33 @@ form_leo <- function(x = Leo2){
     F10 <- apply(x, 2, function(y) y[[10]][ ,1])
     F10ue <- rbind(apply(F10, 1, mean), apply(F10, 1, plotrix::std.error))
     
-    F11 <- apply(x, 2, function(y) y[[11]]$par)
+    F11 <- apply(x, 2, function(y) y[[11]][ ,1])
     F11ue <- rbind(apply(F11, 1, mean), apply(F11, 1, plotrix::std.error))
     
-    F12 <- apply(x, 2, function(y) y[[12]])
+    F12 <- apply(x, 2, function(y) y[[12]]$par)
     F12ue <- rbind(apply(F12, 1, mean), apply(F12, 1, plotrix::std.error))
     
-    l2 <- list(F7ue, F8ue, F9ue, F10ue, F11ue, F12ue)
-    names(l2) <- c("FD", "FRIC_FDIS", "Chequer", "FuncBeta", "SAR", "treeNODF")
     
-    l3 <- list(l1, l2)
-    names(l3) <- c("Pre-humans", "Post-humans")
+    l2 <- list(F7ue, F8ue, F9ue, F10ue, F11ue, F12ue)
+    names(l2) <- c("FD", "FRIC_FDIS", "Chequer", "TaxoBeta", "FuncBeta", "SAR")
+    
+    ##signficant tests
+    t1 <- t.test(F1[1,], F7[1,]) 
+    t2 <- t.test(F2[1,], F8[1,]) 
+    t3 <- t.test(F3[1,], F9[1,]) 
+    t4 <- t.test(F4[1,], F10[1,]) 
+    t5 <- t.test(F5[1,], F11[1,])
+    t6 <- t.test(F6[2,], F12[2,])
+    
+    ta <- list(t1, t2, t3, t4, t5, t6)
+    tt <- vapply(ta, function(y){
+      y1 <- y$statistic %>% round(2)
+      y2 <- y$p.value %>% round(2)
+      c(y1, y2)
+    }, FUN.VALUE = numeric(2))
+    
+    l3 <- list(l1, l2, tt)
+    names(l3) <- c("Pre-humans", "Post-humans", "T_tests")
     
     return(l3)  
 }
