@@ -17,6 +17,8 @@ require(sars)
 require(CommEcol)
 require(phytools)
 require(plotrix)
+require(vegan)
+require(ggplot2)
 
 ############################################
 ###INTERNAL FUNCTIONS##########################
@@ -199,7 +201,7 @@ disperse = function(patches, species = NULL) {
 ##nam = name of the plotted file (for saving)
 ##verb = print informatino from the various functions run inside Leo
 
-Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
+Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
     
     species <- matrix(nrow = 300, ncol = 3)
     colnames(species) <- c("BS", "D", "Beak")
@@ -253,7 +255,11 @@ Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
         CM[mat, (i + 1)] <- 1
     }
 
-    resL <- vector("list", length = 12)
+    if(plot_F){
+      resL <- vector("list", length = 13)
+    } else {
+      resL <- vector("list", length = 12)
+    }
 
     CM <- t(CM)#picante has species as columns
     resL[[1]] <- picante::pd(CM, arcDen)#get FD of each island
@@ -388,8 +394,6 @@ Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
     sarDf_Ex <- data.frame("A" = ar, "S" = rowSums(CM_Ex)[2:6])
     resL[[12]] <- sars::sar_power(sarDf_Ex)
 
-    
-                                  
     ##plot the dendogram with extinct species and extant species
     if (plot_T){
         #get dendogram and species list for biggest island
@@ -411,7 +415,31 @@ Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
                                                          c("Present", "Extinct")))
         dev.off()
     }
-
+    
+    #do PCA on trait matrix of all species, then plot functional space
+    #of all species and then just extinct species
+    if (plot_F){
+      pca <- vegan::rda(species3)
+      pcaS <- summary(pca)
+      tra <- as.data.frame(pcaS$sites[ ,1:2])
+      colnames(tra) <- c("A1", "A2")
+      
+      ct <- apply(tra, 2, function(x) cor(x, species3))
+      rownames(ct) <- colnames(species3)
+      
+      traE <- tra[which(rownames(tra) %in% rownames(species3_Ex)),]
+      
+      g1 <- ggplot() + geom_point(data = tra, aes(x = A1, y = A2), colour = "blue") + xlab("PCA 1") + ylab("PCA 2") + theme_bw() +
+        geom_point(data = traE, aes(x = A1, y = A2), colour = "red", shape  = 17, size = 3, alpha = 0.5) + 
+        geom_polygon(data = as.data.frame(
+          tra[chull(tra$A1, tra$A2),]), aes(x = A1, y = A2), size = 1,alpha = 0, colour = "blue") + 
+        geom_polygon(data = as.data.frame(traE[chull(traE$A1, traE$A2),]), aes(x = A1, y = A2), size = 1.1, alpha = 0, colour = "red") +
+        theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+              panel.background = element_blank(), axis.line = element_line(colour = "black"))
+      funcSpa <- list(g1, ct)
+      resL[[13]] <- funcSpa
+    }
+    
     return(resL)
 }
 
@@ -422,7 +450,14 @@ Leo <- function(plot_T = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
 
 tes <- Leo()
 
-tes <- Leo(plot = TRUE)
+tes <- Leo(plot_F = TRUE)
+tes[[13]][[1]]
+tes[[13]][[2]]
+
+jpeg("Figure_2.jpeg", width = 15, height = 15, res = 600, units = "cm")
+tes[[13]][[1]]
+dev.off()
+
 
 ##Run Leo N times, create a list of lists and then format it to provide average results with standard error
 
