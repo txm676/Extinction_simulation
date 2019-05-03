@@ -460,31 +460,7 @@ dev.off()
 
 
 ##Run Leo N times, create a list of lists and then format it to provide average results with standard error
-
-
-library(foreach)
-library(doParallel)
-library(cluster)
-
-cores = 10
-cl = makeCluster(cores); on.exit(stopCluster(cl))
-registerDoParallel(cl)
-i = 1 #Dummy line for RStudio
-
-Leo2 = foreach(i=seq(from=1, to=100, by=1))  %dopar% { 
-  require(FD)
-  require(picante) # also loads vegan and ape
-  require(BAT)
-  require(EcoSimR)
-  require(sars)
-  require(CommEcol)
-  require(phytools)
-  require(plotrix)
-  
-  Leo()
-}
-
-#Leo2 <- replicate(100, Leo())
+Leo2 <- replicate(100)
 
 ##save(Leo2, file = "Leo2.R")
 
