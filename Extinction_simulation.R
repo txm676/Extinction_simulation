@@ -2,7 +2,7 @@
 ######SPECIES LOSS SIMULATION#########################################
 #######################################################################
 
-##code for Frontiers of Biogeography ms
+##code for Ecological Research ms
 
 ##aim: to populate islands with realistic species set and distribution of trait values, and
 ##to simulate the effects of extinctions.
@@ -19,6 +19,7 @@ require(phytools)
 require(plotrix)
 require(vegan)
 require(ggplot2)
+library(dplyr)
 
 ############################################
 ###INTERNAL FUNCTIONS##########################
@@ -187,21 +188,24 @@ disperse = function(patches, species = NULL) {
 ###MAIN FUNCTION###########################################
 ################################################################
 
-##creates a mainland pool of 100 species with three traits
+##creates a mainland pool of 300 species with three traits
 ##populates the five islands
 ##calculates the different BG patterns using the pre-human colonisation dataset
 ##simulates the extinction of th % of species
 ##re-calculates the different BG patterns
-##see Frontiers ms for more details
+##see ms for more details
 
 
 ####Arguments
 ##plot_T = whether to plot the functional dendogram with extinct species highlighted
 ##th = the proportion of archipelago species to go extinct (e.g. th = 0.5 = 50% extinction)
+##bs_I = logical - include body size in functional diversity and functional beta calculations
+##Ext_area = logical - whether the probability an extinction events occurs is related to island size
 ##nam = name of the plotted file (for saving)
-##verb = print informatino from the various functions run inside Leo
+##verb = print information from the various functions run inside Leo
 
-Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, nam = "Fig_1.jpeg", verb = FALSE){
+Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
+                Ext_area = TRUE, nam = "Fig_1.jpeg", verb = FALSE){
     
     species <- matrix(nrow = 300, ncol = 3)
     colnames(species) <- c("BS", "D", "Beak")
@@ -242,6 +246,10 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, nam = "Fig_1.jpeg", ve
 
     species3 <- species[allsp2,]
     rownames(species3) <- allsp2
+    
+    # REMOVING BODY SIZE
+    if (!bs_I) species3 <- species3[,-1]
+    
     arcDen <- dendo(species3)
 
     ##calculate PA matrix for archi and each island; calculate PD
@@ -262,8 +270,9 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, nam = "Fig_1.jpeg", ve
     }
 
     CM <- t(CM)#picante has species as columns
+    #scaling traints to mean 0, sd = 1 makes no difference to FD calculation (checked)
     resL[[1]] <- picante::pd(CM, arcDen)#get FD of each island
-    ##Functional dispersion
+    ##Functional richness
     resL[[2]] <- FD::dbFD(x = species3, a = CM, w.abun = FALSE, stand.x = TRUE, messages = verb)
 
     ##c-score
@@ -304,6 +313,8 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, nam = "Fig_1.jpeg", ve
     extinct <- c()
 
     islFull_Ex <- islFull
+    
+    if (Ext_area) arP <- 1 - (ar / (sum(ar))) # probability based on area
 
     ##this iterates in turn through each island which means smaller islands
     ##lose a larger PROPORTION of species, as basically all island lose
@@ -315,6 +326,11 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, nam = "Fig_1.jpeg", ve
         for (i in 1:5){
             dum <- islFull_Ex[[i]]
             if (nrow(dum) == 1) next #always keep 1 sp on an island ##LL: why?
+            ##select whether an extinction event occurs based on island size probability
+            if (Ext_area) {
+              rP <- rbinom(1, 1, arP[i])
+              if (rP == 0) next #no extinction occurs
+            }
             ##sample random sp from ith island weighted by body size
             sdum <- sample(1:nrow(dum), 1, prob = dum[, 1])
             samSp <- dum[sdum, , drop = FALSE]
@@ -347,6 +363,10 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, nam = "Fig_1.jpeg", ve
 
     species3_Ex <- species[allsp2_Ex,]
     rownames(species3_Ex) <- allsp2_Ex
+    
+    #removing body size
+    if (!bs_I)species3_Ex <- species3_Ex[,-1]
+    
     arcDen_Ex <- dendo(species3_Ex)
     ##calculate PA matrix for archi and each island; calculate PD
     CM_Ex <- matrix(0, nrow = nrow(species3_Ex), ncol = 6)
@@ -460,7 +480,7 @@ dev.off()
 
 
 ##Run Leo N times, create a list of lists and then format it to provide average results with standard error
-Leo2 <- replicate(100)
+Leo2 <- replicate(10, Leo())
 
 ##save(Leo2, file = "Leo2.R")
 
@@ -471,7 +491,9 @@ anyNA(Leo2)
 form_leo <- function(x = Leo2){
     
     ##all metrics for pre-colonisation data
-    
+    F0 <- apply(x, 2, function(y) unlist(y[[2]][1]))
+    F0ue <- rbind(apply(F0, 1, mean), apply(F0, 1, plotrix::std.error))
+  
     F1 <- apply(x, 2, function(y) y[[1]][ ,1])
     F1ue <- rbind(apply(F1, 1, mean), apply(F1, 1, plotrix::std.error))
     colnames(F1ue) <- c("A", 1:5)
@@ -493,10 +515,13 @@ form_leo <- function(x = Leo2){
     F6ue <- rbind(apply(F6, 1, mean), apply(F6, 1, plotrix::std.error))
     
     
-    l1 <- list(F1ue, F2ue, F3ue, F4ue, F5ue, F6ue)
-    names(l1) <- c("FD", "FRIC_FDIS", "Chequer", "TaxoBeta", "FuncBeta", "SAR")
+    l1 <- list(F0ue, F1ue, F2ue, F3ue, F4ue, F5ue, F6ue)
+    names(l1) <- c("SR", "FD", "FRIC_FDIS", "Chequer", "TaxoBeta", "FuncBeta", "SAR")
     
     ##all metrics for post-colonisation data
+    F0b <- apply(x, 2, function(y) unlist(y[[8]][1]))
+    F0bue <- rbind(apply(F0b, 1, mean), apply(F0b, 1, plotrix::std.error))
+    
     F7 <- apply(x, 2, function(y) y[[7]][ ,1])
     F7ue <- rbind(apply(F7, 1, mean), apply(F7, 1, plotrix::std.error))
     colnames(F7ue) <- c("A", 1:5)
@@ -518,8 +543,8 @@ form_leo <- function(x = Leo2){
     F12ue <- rbind(apply(F12, 1, mean), apply(F12, 1, plotrix::std.error))
     
     
-    l2 <- list(F7ue, F8ue, F9ue, F10ue, F11ue, F12ue)
-    names(l2) <- c("FD", "FRIC_FDIS", "Chequer", "TaxoBeta", "FuncBeta", "SAR")
+    l2 <- list(F0bue, F7ue, F8ue, F9ue, F10ue, F11ue, F12ue)
+    names(l2) <- c("SR", "FD", "FRIC_FDIS", "Chequer", "TaxoBeta", "FuncBeta", "SAR")
     
     ##signficant tests
     t1 <- t.test(F1[1,], F7[1,]) 
@@ -535,6 +560,7 @@ form_leo <- function(x = Leo2){
       y2 <- y$p.value %>% round(2)
       c(y1, y2)
     }, FUN.VALUE = numeric(2))
+    tt <- cbind(NA, tt)#add NA for first column (relating to species richness
     
     l3 <- list(l1, l2, tt)
     names(l3) <- c("Pre-humans", "Post-humans", "T_tests")
