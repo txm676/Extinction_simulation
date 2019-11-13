@@ -204,6 +204,19 @@ disperse = function(patches, species = NULL) {
 ##nam = name of the plotted file (for saving)
 ##verb = print information from the various functions run inside Leo
 
+
+plot_T = FALSE
+plot_F = FALSE
+th = 0.5
+bs_I = FALSE
+Ext_area = TRUE
+nam = "Fig_1.jpeg"
+verb = FALSE
+
+
+
+
+
 Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
                 Ext_area = TRUE, nam = "Fig_1.jpeg", verb = FALSE){
     
@@ -315,6 +328,40 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
     islFull_Ex <- islFull
     
     if (Ext_area) arP <- 1 - (ar / (sum(ar))) # probability based on area
+    
+    #########################################################################################
+    ##ludwig method of extinction: pick a species from the pool (weighted by bs),
+    #and then pick a random island popn. (i.e. a random island on which this species is found)
+    #and make this popn. go extinct, and so on until th threshold is met
+    
+    #make an archipelago df with only unique species across the five islands
+    #first add a column to each island's species' df with the species number/name
+    islFull_Ex <- lapply(islFull_Ex, as.data.frame)
+    iFE <- lapply(islFull_Ex, function(x){
+      rn <- rownames(x)
+      x$SN <- rn
+      x
+    })
+    iFE <- lapply(iFE, as.data.frame)
+    iFE2 <- dplyr::bind_rows(iFE) #then combine into one df
+    iFE3 <- iFE2 %>% distinct(SN, .keep_all = TRUE) #keep only unique rows based on SN (i.e. unique species)
+ 
+    #select a species from the archieplago based on bs
+    sbs <- sample(1:nrow(iFE3), 1, prob = iFE3[, 1])
+    ss <- iFE3$SN[sbs]
+    #find which islands this species is found on
+    wi <- vapply(islFull_Ex, function(x) ss %in% rownames(x), FUN.VALUE = logical(1))
+    #if more than one island randomly select one; if just one then take that
+    if (!any(wi)) stop("error in species extinction process (Ludwig)")
+    if (length(wi) > 1) {
+      si <- sample(which(wi), 1)
+    } else {
+      si <- which(wi)
+    }
+    #make this chosen population go extinct on this particular island 
+    #NOT FINISHED
+    
+    ###################################################################################
 
     ##this iterates in turn through each island which means smaller islands
     ##lose a larger PROPORTION of species, as basically all island lose
