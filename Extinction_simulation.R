@@ -346,6 +346,8 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
     iFE2 <- dplyr::bind_rows(iFE) #then combine into one df
     iFE3 <- iFE2 %>% distinct(SN, .keep_all = TRUE) #keep only unique rows based on SN (i.e. unique species)
  
+    repeat{
+    
     #select a species from the archieplago based on bs
     sbs <- sample(1:nrow(iFE3), 1, prob = iFE3[, 1])
     ss <- iFE3$SN[sbs]
@@ -353,13 +355,29 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
     wi <- vapply(islFull_Ex, function(x) ss %in% rownames(x), FUN.VALUE = logical(1))
     #if more than one island randomly select one; if just one then take that
     if (!any(wi)) stop("error in species extinction process (Ludwig)")
-    if (length(wi) > 1) {
+    if (length(which(wi)) > 1) {
       si <- sample(which(wi), 1)
     } else {
       si <- which(wi)
     }
+    #if only one species left on island skip it, as need 1 species for SAr and Fd calcs etc
+    nr <- nrow(islFull_Ex[[si]])
+    if (nr == 1) next
+    
     #make this chosen population go extinct on this particular island 
-    #NOT FINISHED
+    wes <- which(rownames(islFull_Ex[[si]]) == ss)
+    islFull_Ex[[si]] <- islFull_Ex[[si]][-wes,]
+    #check if global extinction and if so remove from archip list and add to extinct list
+    if (length(which(wi)) == 1){
+      extinct <- c(extinct, ss)
+      iFE3 <- iFE3[-sbs,]
+    }
+    
+    if (length(extinct) == ceiling(nrow(species3) * th)) break
+    }
+    
+    ##ISSUE: as no area-dependent extinction currnetly, you get similar species numbers on each island after
+    
     
     ###################################################################################
 
@@ -372,7 +390,7 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
     repeat{
         for (i in 1:5){
             dum <- islFull_Ex[[i]]
-            if (nrow(dum) == 1) next #always keep 1 sp on an island ##LL: why?
+            if (nrow(dum) == 1) next #always keep 1 sp on an island 
             ##select whether an extinction event occurs based on island size probability
             if (Ext_area) {
               rP <- rbinom(1, 1, arP[i])
