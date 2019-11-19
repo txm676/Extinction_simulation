@@ -107,13 +107,16 @@ compete = function(patches, species, areas) {
 }
 
 colonise = function(patches, species, areas, method = "SAR") {
+  species <- as.data.frame(species)
     for(a in 1:length(areas)) {
         remaining = getk(areas[a], method)
         while(remaining > 0) {
             if(length(patches[[a]]) == 0) {
-                s = sample(1:nrow(species), 1)
+                s = sample(1:nrow(species), 1, prob = species$D)
             } else {
-                s = sample((1:nrow(species))[-patches[[a]]], 1)
+                w = unique(patches[[a]])
+                s2 = species$D[-w]
+                s = sample((1:nrow(species))[-patches[[a]]], 1, prob = s2)
             }                
             patches[[a]] = c(patches[[a]], s)
             if (method == "mass") {
@@ -198,9 +201,15 @@ disperse = function(patches, species = NULL) {
 
 ####Arguments
 ##plot_T = whether to plot the functional dendogram with extinct species highlighted
+##plot_F = plot functional space of pre- and post- in PCA space
 ##th = the proportion of archipelago species to go extinct (e.g. th = 0.5 = 50% extinction)
 ##bs_I = logical - include body size in functional diversity and functional beta calculations
-##Ext_area = logical - whether the probability an extinction events occurs is related to island size
+##Ext_method = method to use for extinctions, can be one of: 1) "stan" = standard way of just iterating
+##across islands until threshold reached (means all islands lose similar numbers of sp, but small islands
+##lose greater proportion); 2) "prob" = iterates across islands but this time a binomial distribution used
+##to detemrine whether an extinction event occurs, and the probability an extinction events occurs is related 
+##to island size; 3) "Lud" = species randomly selected from pool, and then an island where this sp occurs
+##randomly selected and this population goes extinct.
 ##nam = name of the plotted file (for saving)
 ##verb = print information from the various functions run inside Leo
 
@@ -209,16 +218,13 @@ plot_T = FALSE
 plot_F = FALSE
 th = 0.5
 bs_I = FALSE
-Ext_area = TRUE
+Ext_method = "stan"
 nam = "Fig_1.jpeg"
 verb = FALSE
 
 
-
-
-
 Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
-                Ext_area = TRUE, nam = "Fig_1.jpeg", verb = FALSE){
+                Ext_method = "prob", nam = "Fig_1.jpeg", verb = FALSE){
     
     species <- matrix(nrow = 300, ncol = 3)
     colnames(species) <- c("BS", "D", "Beak")
@@ -250,7 +256,7 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
         }
         if (length(x) > 0) rownames(species2) = x
         species2})
-   # print(islFull)
+    # print(islFull)
     dendz <- lapply(islFull, function(x) {dendo(x)})
 
     ##make archipelago dataset and dendogram
@@ -327,12 +333,14 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
 
     islFull_Ex <- islFull
     
-    if (Ext_area) arP <- 1 - (ar / (sum(ar))) # probability based on area
+    
+    if (Ext_method == "lud"){
     
     #########################################################################################
     ##ludwig method of extinction: pick a species from the pool (weighted by bs),
     #and then pick a random island popn. (i.e. a random island on which this species is found)
     #and make this popn. go extinct, and so on until th threshold is met
+    ###########################################################################
     
     #make an archipelago df with only unique species across the five islands
     #first add a column to each island's species' df with the species number/name
@@ -375,24 +383,28 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
     
     if (length(extinct) == ceiling(nrow(species3) * th)) break
     }
-    
-    ##ISSUE: as no area-dependent extinction currnetly, you get similar species numbers on each island after
-    
+    }#eo main if
     
     ###################################################################################
-
+    
+    ##stan method
     ##this iterates in turn through each island which means smaller islands
     ##lose a larger PROPORTION of species, as basically all island lose
     ##roughly same number of species, but smaller have lower starting point
     ##This is as to be expected as smaller island have > extinction rates
 
+    if (Ext_method == "stan" || Ext_method == "prob"){
+    
+    if (Ext_method == "prob") arP <- 1 - (ar / (sum(ar))) # probability based on area
+    
+    
     j2 <- 0 
     repeat{
         for (i in 1:5){
             dum <- islFull_Ex[[i]]
             if (nrow(dum) == 1) next #always keep 1 sp on an island 
             ##select whether an extinction event occurs based on island size probability
-            if (Ext_area) {
+            if (Ext_method == "prob") {
               rP <- rbinom(1, 1, arP[i])
               if (rP == 0) next #no extinction occurs
             }
@@ -418,6 +430,7 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
         if (length(extinct) == ceiling(nrow(species3) * th)) break
         if (j2 > 1000) return("NO")
     }#eo repeat
+    }#eo if
 
     dead2 <- rep("Present", length = nrow(species3))
     dead2[which(rownames(species3) %in% extinct)] <- "Extinct"
@@ -545,7 +558,7 @@ dev.off()
 
 
 ##Run Leo N times, create a list of lists and then format it to provide average results with standard error
-Leo2 <- replicate(10, Leo())
+Leo2 <- replicate(10, Leo(Ext_method = "lud"))
 
 ##save(Leo2, file = "Leo2.R")
 
@@ -633,17 +646,90 @@ form_leo <- function(x = Leo2){
     return(l3)  
 }
 
-TSL <- form_leo()
+
+##save(Leo2, file = "Leo2.R")
 
 
+Leo2 <- vector("list", length = 6)
+
+d1 <- replicate(10, Leo(Ext_method = "stan"))
+Leo2[[1]] <- form_leo(d1)
+
+d2 <- replicate(10, Leo(Ext_method = "prob"))
+Leo2[[2]] <- form_leo(d2)
+
+d3 <- replicate(10, Leo(Ext_method = "lud"))
+Leo2[[3]] <- form_leo(d3)
+
+d4 <- replicate(10, Leo(Ext_method = "stan", bs_I = TRUE))
+Leo2[[4]] <- form_leo(d4)
+
+d5 <- replicate(10, Leo(Ext_method = "stan", th = 0.3))
+Leo2[[5]] <- form_leo(d5)
+
+d6 <- replicate(10, Leo(Ext_method = "stan", th = 0.7))
+Leo2[[6]] <- form_leo(d6)
+
+anyNA(Leo2)
+
+names(Leo2) <- c("Standard_extinction", "Probabilistic_extinction", "Ludwig_extinction",
+                "Body_size_included", "th0.3", "th=0.7")
+
+ms_table <- function(z){
+
+l1 <- z$`Pre-humans`$SR[1,] %>% round(0)
+l2 <- z$`Post-humans`$SR[1,] %>% round(0)
+t1 <- z$T_tests[,1]
+
+l3 <- z$`Pre-humans`$FRIC_FDIS[1,1:6] %>% round(0)
+l4 <- z$`Post-humans`$FRIC_FDIS[1,1:6] %>% round(0)
+t2 <- z$T_tests[,3] %>% round(1)
+
+l5 <- c(z$`Pre-humans`$TaxoBeta[1,], rep(NA,3)) %>% round(2)
+l6 <- c(z$`Post-humans`$TaxoBeta[1,], rep(NA,3)) %>% round(2)
+t3 <- z$T_tests[,5] %>% round(1)
+
+l7 <- c(z$`Pre-humans`$FuncBeta[1,], rep(NA,3)) %>% round(2)
+l8 <- c(z$`Post-humans`$FuncBeta[1,], rep(NA,3)) %>% round(2)
+t4 <- z$T_tests[,6] %>% round(1)
+
+l9 <- c(z$`Pre-humans`$SAR[3], rep(NA,5)) %>% round(2)
+l10 <- c(z$`Post-humans`$SAR[3], rep(NA,5)) %>% round(2)
+t5 <- z$T_tests[,7] %>% round(1)
+
+l11 <- c(z$`Pre-humans`$Chequer[c(1,9)], rep(NA,4)) %>% round(2)
+l12 <- c(z$`Post-humans`$Chequer[c(1,9)], rep(NA,4)) %>% round(2)
+t6 <- z$T_tests[,4] %>% round(1)
+
+p1 <- paste0(l1[1], " (", l1[2], ", ", l1[3], ", ", l1[4], ", ", l1[5], ", ", l1[6], ")")
+p2 <- paste0(l2[1], " (", l2[2], ", ", l2[3], ", ", l2[4], ", ", l2[5], ", ", l2[6], ")")
+
+p3 <- paste0(l3[1], " (", l3[2], ", ", l3[3], ", ", l3[4], ", ", l3[5], ", ", l3[6], ")")
+p4 <- paste0(l4[1], " (", l4[2], ", ", l4[3], ", ", l4[4], ", ", l4[5], ", ", l4[6], ")")
+
+p5 <- paste0(l5[1], " (", l5[2], ", ", l5[3], ")")
+p6 <- paste0(l6[1], " (", l6[2], ", ", l6[3], ")")
+
+p7 <- paste0(l7[1], " (", l7[2], ", ", l7[3], ")")
+p8 <- paste0(l8[1], " (", l8[2], ", ", l8[3], ")")
+
+p9 <- paste0(l9[1])
+p10 <- paste0(l10[1])
+
+p11 <- paste0(l11[1], " (SES = ", l11[2], ")")
+p12 <- paste0(l12[1], " (SES = ", l12[2], ")")
+
+rr <- rbind(c(p1,p2,t1), c(p3,p4,t2), c(p5,p6,t3), c(p7,p8,t4),
+            c(p9,p10,t5),c(p11,p12,t6))
+
+colnames(rr) <- c("Pre-human colonization", "Post-human colonization", 
+                  "t-value", "P")
+rownames(rr) <- c("Species richness", "Functional richness", "Taxonomic beta-diversity",
+                  "Functional beta-diversity", "Slope of the SAR (z)", "C-score")
+
+return(rr)
+}
 
 
-
-
-
-
-
-
-
-
+lapply(Leo2, ms_table) %>% write.csv()
 
