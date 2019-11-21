@@ -496,6 +496,7 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
     if (plot_T){
         #get dendogram and species list for biggest island
         bigI <- islFull[[5]]
+        if (bs_I == FALSE) bigI <- bigI[,-1]
         bigDen <- dendo(bigI)
         bigSp <- rownames(bigI)
         
@@ -548,13 +549,8 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
 
 tes <- Leo()
 
-tes <- Leo(plot_F = TRUE)
-tes[[13]][[1]]
-tes[[13]][[2]]
+tes <- Leo(plot_T = TRUE)
 
-jpeg("Figure_2.jpeg", width = 15, height = 15, res = 600, units = "cm")
-tes[[13]][[1]]
-dev.off()
 
 ###########################################
 #####functions to format the output of the main function and generate results table
