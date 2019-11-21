@@ -214,17 +214,17 @@ disperse = function(patches, species = NULL) {
 ##verb = print information from the various functions run inside Leo
 
 
-plot_T = FALSE
-plot_F = FALSE
-th = 0.5
-bs_I = FALSE
-Ext_method = "stan"
-nam = "Fig_1.jpeg"
-verb = FALSE
+#plot_T = FALSE
+#plot_F = FALSE
+#th = 0.5
+#bs_I = FALSE
+#Ext_method = "stan"
+#nam = "Fig_1.jpeg"
+#verb = FALSE
 
 
 Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
-                Ext_method = "prob", nam = "Fig_1.jpeg", verb = FALSE){
+                Ext_method = "stan", nam = "Fig_1.jpeg", verb = FALSE){
     
     species <- matrix(nrow = 300, ncol = 3)
     colnames(species) <- c("BS", "D", "Beak")
@@ -556,15 +556,9 @@ jpeg("Figure_2.jpeg", width = 15, height = 15, res = 600, units = "cm")
 tes[[13]][[1]]
 dev.off()
 
-
-##Run Leo N times, create a list of lists and then format it to provide average results with standard error
-Leo2 <- replicate(10, Leo(Ext_method = "lud"))
-
-##save(Leo2, file = "Leo2.R")
-
-
-anyNA(Leo2)
-
+###########################################
+#####functions to format the output of the main function and generate results table
+####################################################
 
 form_leo <- function(x = Leo2){
     
@@ -674,6 +668,8 @@ anyNA(Leo2)
 
 names(Leo2) <- c("Standard_extinction", "Probabilistic_extinction", "Ludwig_extinction",
                 "Body_size_included", "th0.3", "th=0.7")
+
+###function to create Table 1
 
 ms_table <- function(z){
 
