@@ -208,8 +208,9 @@ disperse = function(patches, species = NULL) {
 ##across islands until threshold reached (means all islands lose similar numbers of sp, but small islands
 ##lose greater proportion); 2) "prob" = iterates across islands but this time a binomial distribution used
 ##to detemrine whether an extinction event occurs, and the probability an extinction events occurs is related 
-##to island size; 3) "Lud" = species randomly selected from pool, and then an island where this sp occurs
-##randomly selected and this population goes extinct.
+##to island size; 3) "Lud1" = species randomly selected from pool, and then an island where this sp occurs
+##randomly selected and this population goes extinct; 4) "Lud2" = same as 3 (Lud1) but the island is chosen based
+##on island area.
 ##nam = name of the plotted file (for saving)
 ##verb = print information from the various functions run inside Leo
 
@@ -218,13 +219,15 @@ disperse = function(patches, species = NULL) {
 #plot_F = FALSE
 #th = 0.5
 #bs_I = FALSE
-#Ext_method = "stan"
+#Ext_method = "lud2"
 #nam = "Fig_1.jpeg"
 #verb = FALSE
 
 
 Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
                 Ext_method = "stan", nam = "Fig_1.jpeg", verb = FALSE){
+  
+  if (!Ext_method %in% c("stan", "prob", "lud1", "lud2")) stop("Ext_method needs to be one of: stan, prob, lud1 or lud2")
     
     species <- matrix(nrow = 300, ncol = 3)
     colnames(species) <- c("BS", "D", "Beak")
@@ -334,11 +337,12 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
     islFull_Ex <- islFull
     
     
-    if (Ext_method == "lud"){
+    if (Ext_method == "lud1" || Ext_method == "lud2"){
     
     #########################################################################################
     ##ludwig method of extinction: pick a species from the pool (weighted by bs),
-    #and then pick a random island popn. (i.e. a random island on which this species is found)
+    #and then pick a random island popn. (Lud1; i.e. a random island on which this species is found),
+    #or (Lud2) pick the island population weighted by island size;
     #and make this popn. go extinct, and so on until th threshold is met
     ###########################################################################
     
@@ -364,7 +368,13 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
     #if more than one island randomly select one; if just one then take that
     if (!any(wi)) stop("error in species extinction process (Ludwig)")
     if (length(which(wi)) > 1) {
-      si <- sample(which(wi), 1)
+      if (Ext_method == "lud2") {#select island by island area rather than area
+        war <- ar[wi] 
+        arP <- 1 - (war / (sum(war))) 
+        si <- sample(which(wi), 1, prob = arP)
+      } else { #or select it randomly
+        si <- sample(which(wi), 1)
+      }
     } else {
       si <- which(wi)
     }
@@ -384,6 +394,7 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
     if (length(extinct) == ceiling(nrow(species3) * th)) break
     }
     }#eo main if
+
     
     ###################################################################################
     
@@ -640,7 +651,7 @@ form_leo <- function(x = Leo2){
 ##save(Leo2, file = "Leo2.R")
 
 
-Leo2 <- vector("list", length = 6)
+Leo2 <- vector("list", length = 7)
 
 d1 <- replicate(10, Leo(Ext_method = "stan"))
 Leo2[[1]] <- form_leo(d1)
@@ -648,22 +659,25 @@ Leo2[[1]] <- form_leo(d1)
 d2 <- replicate(10, Leo(Ext_method = "prob"))
 Leo2[[2]] <- form_leo(d2)
 
-d3 <- replicate(10, Leo(Ext_method = "lud"))
+d3 <- replicate(10, Leo(Ext_method = "lud1"))
 Leo2[[3]] <- form_leo(d3)
 
-d4 <- replicate(10, Leo(Ext_method = "stan", bs_I = TRUE))
+d4 <- replicate(10, Leo(Ext_method = "lud2"))
 Leo2[[4]] <- form_leo(d4)
 
-d5 <- replicate(10, Leo(Ext_method = "stan", th = 0.3))
+d5 <- replicate(10, Leo(Ext_method = "stan", bs_I = TRUE))
 Leo2[[5]] <- form_leo(d5)
 
-d6 <- replicate(10, Leo(Ext_method = "stan", th = 0.7))
+d6 <- replicate(10, Leo(Ext_method = "stan", th = 0.3))
 Leo2[[6]] <- form_leo(d6)
+
+d7 <- replicate(10, Leo(Ext_method = "stan", th = 0.7))
+Leo2[[7]] <- form_leo(d7)
 
 anyNA(Leo2)
 
-names(Leo2) <- c("Standard_extinction", "Probabilistic_extinction", "Ludwig_extinction",
-                "Body_size_included", "th0.3", "th=0.7")
+names(Leo2) <- c("Standard_extinction", "Probabilistic_extinction", "Ludwig_extinction1",
+                 "Ludwig_extinction2", "Body_size_included", "th0.3", "th=0.7")
 
 ###function to create Table 1
 
