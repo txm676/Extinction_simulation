@@ -75,6 +75,10 @@ getdistances = function(species) {
 }
 
 compete = function(patches, species, areas) {
+  
+   #remove tolerance trait
+   species <- species[,-4]
+  
     k = getk(areas, "SAR")
     popmasses = getpopmass(species[, 'BS'])
     for (p in 1:length(patches)) {
@@ -142,8 +146,12 @@ spec_internal <- function(traits){
 speciate = function(patches, species, rate) {
     for (p in 1:length(patches)) {
         for (s in 1:length(patches[[p]])) {
-            if (runif(1) <= rate) {
-                traits <- species[s, ]
+            #bug correction
+            s2 <- patches[[p]][s]
+            traits <- species[s2, ]
+            t4 <- traits[4]
+            rate2 <- rate * t4 #caluclate speciatino rate based on physiological tolerance tait
+            if (runif(1) <= rate2) {
                 dum <- spec_internal(traits)
                 #check for negative trait values; if present re-run until not present
                 if (any(dum <= 0)){
@@ -170,7 +178,7 @@ speciate = function(patches, species, rate) {
     list(patches, species)
 }
         
-            
+         
 disperse = function(patches, species = NULL) {
     if (length(patches) > 1) {
         for (p in 1:length(patches)) {
@@ -229,14 +237,15 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
   
   if (!Ext_method %in% c("stan", "prob", "lud1", "lud2")) stop("Ext_method needs to be one of: stan, prob, lud1 or lud2")
     
-    species <- matrix(nrow = 300, ncol = 3)
-    colnames(species) <- c("BS", "D", "Beak")
+    species <- matrix(nrow = 300, ncol = 4)
+    colnames(species) <- c("BS", "D", "Beak", "tolerance")
     rownames(species) = 1:nrow(species)
     
     species[, 1] <- rgamma(nrow(species), 1)#body size
     species[, 2] <- rbeta(nrow(species), 0.9, 1.4)#dispersal
     species[, 3] <- runif(nrow(species), 1, 8)#beak shape
-
+    species[, 4] <- rbeta(nrow(species), 0.8, 1.8)#tolerance
+    
     ##create islands
     isl <- vector("list", length = 5)#list to put island species in
     ar <- c(10, 20, 40, 80, 100)#island areas
@@ -395,7 +404,7 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
     }
     }#eo main if
 
-    
+
     ###################################################################################
     
     ##stan method
