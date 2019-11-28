@@ -150,7 +150,7 @@ speciate = function(patches, species, rate) {
             s2 <- patches[[p]][s]
             traits <- species[s2, ]
             t4 <- traits[4]
-            rate2 <- rate * t4 #caluclate speciatino rate based on physiological tolerance tait
+            rate2 <- rate * t4 #calculate speciation rate based on physiological tolerance tait
             if (runif(1) <= rate2) {
                 dum <- spec_internal(traits)
                 #check for negative trait values; if present re-run until not present
@@ -223,15 +223,6 @@ disperse = function(patches, species = NULL) {
 ##verb = print information from the various functions run inside Leo
 
 
-#plot_T = FALSE
-#plot_F = FALSE
-#th = 0.5
-#bs_I = FALSE
-#Ext_method = "lud2"
-#nam = "Fig_1.jpeg"
-#verb = FALSE
-
-
 Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
                 Ext_method = "stan", nam = "Fig_1.jpeg", verb = FALSE){
   
@@ -244,7 +235,7 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
     species[, 1] <- rgamma(nrow(species), 1)#body size
     species[, 2] <- rbeta(nrow(species), 0.9, 1.4)#dispersal
     species[, 3] <- runif(nrow(species), 1, 8)#beak shape
-    species[, 4] <- rbeta(nrow(species), 0.8, 1.8)#tolerance
+    species[, 4] <- runif(nrow(species), 0.001, 1)#tolerance
     
     ##create islands
     isl <- vector("list", length = 5)#list to put island species in
@@ -569,7 +560,7 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
 
 tes <- Leo()
 
-tes <- Leo(plot_T = TRUE)
+tes <- Leo(bs_I = FALSE, plot_T = TRUE)
 
 
 ###########################################
@@ -662,25 +653,25 @@ form_leo <- function(x = Leo2){
 
 Leo2 <- vector("list", length = 7)
 
-d1 <- replicate(10, Leo(Ext_method = "stan"))
+d1 <- replicate(50, Leo(Ext_method = "stan"))
 Leo2[[1]] <- form_leo(d1)
 
-d2 <- replicate(10, Leo(Ext_method = "prob"))
+d2 <- replicate(50, Leo(Ext_method = "prob"))
 Leo2[[2]] <- form_leo(d2)
 
-d3 <- replicate(10, Leo(Ext_method = "lud1"))
+d3 <- replicate(50, Leo(Ext_method = "lud1"))
 Leo2[[3]] <- form_leo(d3)
 
-d4 <- replicate(10, Leo(Ext_method = "lud2"))
+d4 <- replicate(50, Leo(Ext_method = "lud2"))
 Leo2[[4]] <- form_leo(d4)
 
-d5 <- replicate(10, Leo(Ext_method = "stan", bs_I = TRUE))
+d5 <- replicate(50, Leo(Ext_method = "stan", bs_I = TRUE))
 Leo2[[5]] <- form_leo(d5)
 
-d6 <- replicate(10, Leo(Ext_method = "stan", th = 0.3))
+d6 <- replicate(50, Leo(Ext_method = "stan", th = 0.3))
 Leo2[[6]] <- form_leo(d6)
 
-d7 <- replicate(10, Leo(Ext_method = "stan", th = 0.7))
+d7 <- replicate(50, Leo(Ext_method = "stan", th = 0.7))
 Leo2[[7]] <- form_leo(d7)
 
 anyNA(Leo2)
