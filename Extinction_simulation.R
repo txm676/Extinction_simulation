@@ -225,9 +225,13 @@ disperse = function(patches, species = NULL) {
 
 Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
                 Ext_method = "stan", nam = "Fig_1.jpeg", verb = FALSE){
+
   
   if (!Ext_method %in% c("stan", "prob", "lud1", "lud2")) stop("Ext_method needs to be one of: stan, prob, lud1 or lud2")
     
+  
+  repeat{
+  
     species <- matrix(nrow = 300, ncol = 4)
     colnames(species) <- c("BS", "D", "Beak", "tolerance")
     rownames(species) = 1:nrow(species)
@@ -290,6 +294,8 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
     } else {
       resL <- vector("list", length = 12)
     }
+    
+    if (any(colSums(CM[,2:6]) == 0) || any(rowSums(CM[,2:6]) == 0)) stop("zeros in PA matrix")
 
     CM <- t(CM)#picante has species as columns
     #scaling traints to mean 0, sd = 1 makes no difference to FD calculation (checked)
@@ -299,8 +305,9 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
 
     ##c-score
     ##EcoSimR::c_score(t(CM))#EcoSimR has sites as columns
-    ES <- EcoSimR::cooc_null_model(t(CM), algo = "sim9", metric = "c_score", nReps = 1000, suppressProg = !verb)#sim9 is curveball of Strona
-    ##get P-values: from ecosim code
+    #take rows 2:6 as 1st is archipelago
+    ES <- EcoSimR::cooc_null_model(t(CM[2:6,]), algo = "sim9", metric = "c_score", nReps = 1000, suppressProg = !verb)#sim9 is curveball of Strona
+    ##get P-values: from ecosim package code
     nullmodObj <- ES
     if (nullmodObj$Obs > max(nullmodObj$Sim)){
        LP <- (length(nullmodObj$Sim) - 1)/length(nullmodObj$Sim) 
@@ -319,10 +326,10 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
     ##summary(NM)
     
     #taxonomic beta - BAT has species as columns
-    resL[[4]] <- BAT::beta.multi(CM)#look at replacement?? ##LL: vegan::betadiver or even zeta diversity?
+    resL[[4]] <- BAT::beta.multi(CM[2:6,])#look at replacement?? ##LL: vegan::betadiver or even zeta diversity?
 
     ##beta-diversity (functional) - BAT has species as columns
-    resL[[5]] <- BAT::beta.multi(CM, arcDen)#look at replacement?? ##LL: vegan::betadiver or even zeta diversity?
+    resL[[5]] <- BAT::beta.multi(CM[2:6,], arcDen)#look at replacement?? ##LL: vegan::betadiver or even zeta diversity?
 
     ##sar z value
     sarDf <- data.frame("A" = ar, "S" = rowSums(CM)[2:6])
@@ -335,7 +342,6 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
     extinct <- c()
 
     islFull_Ex <- islFull
-    
     
     if (Ext_method == "lud1" || Ext_method == "lud2"){
     
@@ -467,6 +473,8 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
         mat <- which(rownames(CM_Ex) %in% dd)
         CM_Ex[mat, (i + 1)] <- 1
     }
+    
+    if (any(colSums(CM_Ex[,2:6]) == 0) || any(rowSums(CM_Ex[,2:6]) == 0)) stop("zeros in PA matrix")
 
     CM_Ex <- t(CM_Ex)#picante has species as columns
     resL[[7]] <- picante::pd(CM_Ex, arcDen_Ex)#get FD of each island
@@ -475,7 +483,7 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
 
     ##c-score
     ##EcoSimR::c_score(t(CM_Ex))#EcoSimR has sites as columns
-    ES_Ex <- EcoSimR::cooc_null_model(t(CM_Ex), algo = "sim9", metric = "c_score", nReps = 1000, suppressProg = !verb)#sim9 is curveball of Strona
+    ES_Ex <- EcoSimR::cooc_null_model(t(CM_Ex[2:6,]), algo = "sim9", metric = "c_score", nReps = 1000, suppressProg = !verb)#sim9 is curveball of Strona
     ##get P-values: from ecosim code
     nullmodObj <- ES_Ex
     if (nullmodObj$Obs > max(nullmodObj$Sim)){
@@ -490,14 +498,17 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
     }
 
     ses <- format((nullmodObj$Obs - mean(nullmodObj$Sim))/sd(nullmodObj$Sim))
+    
+    if(ses > 5) break
+}
 
     resL[[9]] <- as.numeric(c(ES_Ex$Obs, mean(ES_Ex$Sim), LP, UP, ses))
     
     ##taxonomic beta - BAT has species as columns
-    resL[[10]] <- BAT::beta.multi(CM_Ex)
+    resL[[10]] <- BAT::beta.multi(CM_Ex[2:6,])
 
     ##beta-diversity (functional) - BAT has species as columns
-    resL[[11]] <- BAT::beta.multi(CM_Ex, arcDen_Ex)
+    resL[[11]] <- BAT::beta.multi(CM_Ex[2:6,], arcDen_Ex)
 
     ##sar z value
     sarDf_Ex <- data.frame("A" = ar, "S" = rowSums(CM_Ex)[2:6])
@@ -609,7 +620,7 @@ form_leo <- function(x = Leo2){
     F8ue <- rbind(apply(F8, 1, mean, na.rm = TRUE), apply(F8, 1, plotrix::std.error))
     
     F9 <- apply(x, 2, function(y) y[[9]])
-    F9ue <- rbind(apply(F9, 1, mean), apply(F9, 1, plotrix::std.error))
+    F9ue <- rbind(apply(F9, 1, mean, na.rm = TRUE), apply(F9, 1, plotrix::std.error))
     colnames(F9ue) <- c("Obs", "Mean", "LP", "UP", "SES")
     
     F10 <- apply(x, 2, function(y) y[[10]][ ,1])
