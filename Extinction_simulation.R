@@ -229,9 +229,6 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
   
   if (!Ext_method %in% c("stan", "prob", "lud1", "lud2")) stop("Ext_method needs to be one of: stan, prob, lud1 or lud2")
     
-  
-  repeat{
-  
     species <- matrix(nrow = 300, ncol = 4)
     colnames(species) <- c("BS", "D", "Beak", "tolerance")
     rownames(species) = 1:nrow(species)
@@ -499,9 +496,6 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
 
     ses <- format((nullmodObj$Obs - mean(nullmodObj$Sim))/sd(nullmodObj$Sim))
     
-    if(ses > 5) break
-}
-
     resL[[9]] <- as.numeric(c(ES_Ex$Obs, mean(ES_Ex$Sim), LP, UP, ses))
     
     ##taxonomic beta - BAT has species as columns
