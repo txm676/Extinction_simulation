@@ -115,7 +115,7 @@ colonise = function(patches, species, areas, method = "SAR") {
     for(a in 1:length(areas)) {
         remaining = getk(areas[a], method)
         while(remaining > 0) {
-            if(length(patches[[a]]) == 0) {
+            if (length(patches[[a]]) == 0) {
                 s = sample(1:nrow(species), 1, prob = species$D)
             } else {
                 w = unique(patches[[a]])
@@ -139,7 +139,11 @@ spec_internal <- function(traits){
   newvalues <- rnorm(2, 0, 0.8)
   traits[c(1, 3)] <- traits[c(1, 3)] + newvalues #for body size and beak add random noise
   #TM: the value inside the parentheses can be + or - so no longer always reduces dispersal
-  traits[2] <- traits[2] - (traits[2] * rnorm(1, 0, 0.1))#for dispersal - reduce ##LL: too much assumption?
+  traits[c(2, 4)] <- traits[c(2, 4)] - (traits[c(2, 4)] * rnorm(2, 0, 0.1))#for dispersal - reduce ##LL: too much assumption?
+  #fix at max possible values
+  if (traits[2] > 1) traits[2] <- 1 
+  if (traits[3] > 8) traits[3] <- 8 
+  if (traits[4] > 1) traits[4] <- 1 
   return(traits)
 }
 
@@ -186,7 +190,8 @@ disperse = function(patches, species = NULL) {
             while (s <= length(patches[[p]])) {
                 if (runif(1) <= species[patches[[p]][s], 'D']) {
                     target <- sample(1:length(patches), 1) # picking origin == failed dispersal
-                    patches[[target]] = c(patches[[target]], s)
+                    patches[[target]] = c(patches[[target]], patches[[p]][s])##bug correction
+                    #patches[[target]] = c(patches[[target]], s)##bug correction
                 }
                 s = s + 1
             }
