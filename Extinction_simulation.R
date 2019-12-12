@@ -83,27 +83,30 @@ compete = function(patches, species, areas) {
     popmasses = getpopmass(species[, 'BS'])
     for (p in 1:length(patches)) {
         if (length(patches[[p]]) > 1) {
-            dists = getdistances(species[patches[[p]],])
+            dists = getdistances(species[patches[[p]],])#top row of dists is the sp. pair with shortest distance
         }
         count = 1
-        while (sum(popmasses[patches[[p]]]) > k[p]) {
+        while (sum(popmasses[patches[[p]]]) > k[p]) { #as trying to reduce richness to below carrying capacity
              if (length(patches[[p]]) > 1) {
+               #if reached the bottom of dists, re-create it with the current set of species in the patch (i.e. not including ones removed)
                 if(count > nrow(dists)) {
                     dists = getdistances(species[patches[[p]],])
                     count = 1
                 }
-                while(!all(dists[count, 1:2] %in% patches[[p]]) & count < nrow(dists)) {
+                #go from top row of dists down until find species pair where both are in the patch
+                while(!all(dists[count, 1:2] %in% patches[[p]]) & count < nrow(dists)) { #second term: if reach bottom of dists break out
                     count = count + 1
                 }
+               #if reached the bottom of dists, re-create it with the current set of species in the patch (i.e. not including ones removed)
                 if(count > nrow(dists)) {
                     dists = getdistances(species[patches[[p]],])
-                    count = 1
+                    count = 1 #and start back at the top row
                 }
-                victim = as.numeric(sample(dists[count, 1:2], 1))
-                patches[[p]] = patches[[p]][patches[[p]] != victim]
+                victim = as.numeric(sample(dists[count, 1:2], 1))#randomly sample one of the sp pair to remove
+                patches[[p]] = patches[[p]][patches[[p]] != victim] #remove it
                 count = count + 1
             } else {
-                patches[[p]] = patches[[p]][NULL]
+                patches[[p]] = patches[[p]][NULL] #return a null list as 1 or 0 species left
             }
         }
     }
@@ -191,7 +194,7 @@ disperse = function(patches, species = NULL) {
                 if (runif(1) <= species[patches[[p]][s], 'D']) {
                     target <- sample(1:length(patches), 1) # picking origin == failed dispersal
                     patches[[target]] = c(patches[[target]], patches[[p]][s])##bug correction
-                    #patches[[target]] = c(patches[[target]], s)##bug correction
+                    #patches[[target]] = c(patches[[target]], s)##original
                 }
                 s = s + 1
             }
