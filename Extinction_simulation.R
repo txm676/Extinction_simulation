@@ -80,13 +80,14 @@ compete = function(patches, species, areas) {
    species <- species[,-4]
   
     k = getk(areas, "SAR")
-    popmasses = getpopmass(species[, 'BS'])
+   # popmasses = getpopmass(species[, 'BS'])
     for (p in 1:length(patches)) {
         if (length(patches[[p]]) > 1) {
             dists = getdistances(species[patches[[p]],])#top row of dists is the sp. pair with shortest distance
         }
         count = 1
-        while (sum(popmasses[patches[[p]]]) > k[p]) { #as trying to reduce richness to below carrying capacity
+      #  while (sum(popmasses[patches[[p]]]) > k[p]) { #as trying to reduce richness to below carrying capacity
+        while (length(patches[[p]]) > k[p]) { #as trying to reduce richness to below carrying capacity
              if (length(patches[[p]]) > 1) {
                #if reached the bottom of dists, re-create it with the current set of species in the patch (i.e. not including ones removed)
                 if(count > nrow(dists)) {
@@ -261,11 +262,11 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
 
     ##create list with the full trait matrix for each island
     islFull <- lapply(isl, function(x) {
-        if (length(species[x]) == ncol(species)) {
-            species2 = t(as.matrix(species[x, ]))
-        } else {
+       # if (length(species[x]) == ncol(species)) { ???
+       #     species2 = t(as.matrix(species[x, ]))
+      #  } else {
             species2 = species[x, ]
-        }
+      #  }
         if (length(x) > 0) rownames(species2) = x
         species2})
     # print(islFull)
@@ -283,7 +284,7 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
     
     arcDen <- dendo(species3)
 
-    ##calculate PA matrix for archi and each island; calculate PD
+    ##calculate PA matrix for archi and each island; calculate FD
     CM <- matrix(0, nrow = nrow(species3), ncol = 1 + length(isl))
     rownames(CM) <- rownames(species3)
     colnames(CM) <- c("A", 1:length(isl))
@@ -305,7 +306,7 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
     CM <- t(CM)#picante has species as columns
     #scaling traints to mean 0, sd = 1 makes no difference to FD calculation (checked)
     resL[[1]] <- picante::pd(CM, arcDen)#get FD of each island
-    ##Functional richness
+    ##Functional richness: rows are site, species cols
     resL[[2]] <- FD::dbFD(x = species3, a = CM, w.abun = FALSE, stand.x = TRUE, messages = verb)
 
     ##c-score
@@ -379,7 +380,7 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
     #if more than one island randomly select one; if just one then take that
     if (!any(wi)) stop("error in species extinction process (Ludwig)")
     if (length(which(wi)) > 1) {
-      if (Ext_method == "lud2") {#select island by island area rather than area
+      if (Ext_method == "lud2") {#select island by island area rather than randomly
         war <- ar[wi] 
         arP <- 1 - (war / (sum(war))) 
         si <- sample(which(wi), 1, prob = arP)
@@ -465,10 +466,10 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
     rownames(species3_Ex) <- allsp2_Ex
     
     #removing body size
-    if (!bs_I)species3_Ex <- species3_Ex[,-1]
+    if (!bs_I) species3_Ex <- species3_Ex[,-1]
     
     arcDen_Ex <- dendo(species3_Ex)
-    ##calculate PA matrix for archi and each island; calculate PD
+    ##calculate PA matrix for archi and each island; calculate FD
     CM_Ex <- matrix(0, nrow = nrow(species3_Ex), ncol = 6)
     rownames(CM_Ex) <- rownames(species3_Ex)
     colnames(CM_Ex) <- c("A", 1:5)
@@ -483,7 +484,7 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
 
     CM_Ex <- t(CM_Ex)#picante has species as columns
     resL[[7]] <- picante::pd(CM_Ex, arcDen_Ex)#get FD of each island
-    ##Functional richness
+    ##Functional richness: rows are site, species cols
     resL[[8]] <- FD::dbFD(x = species3_Ex , a = CM_Ex , w.abun = FALSE, stand.x = TRUE, messages = verb)#FD has species as columns
 
     ##c-score
@@ -534,7 +535,7 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
         fmode <- as.factor(setNames(dead3, bigSp))
 
         jpeg(paste(nam), width = 20, height = 20, units = "cm", res = 300)
-        phytools::dotTree(bigDen, fmode, colors=setNames(c("blue","red"),
+        phytools::dotTree(bigDen, fmode, colors=setNames(c("black","white"),
                                                          c("Present", "Extinct")))
         dev.off()
     }
@@ -669,22 +670,22 @@ Leo2 <- vector("list", length = 7)
 d1 <- replicate(50, Leo(Ext_method = "stan"))
 Leo2[[1]] <- form_leo(d1)
 
-d2 <- replicate(50, Leo(Ext_method = "prob"))
+d2 <- replicate(10, Leo(Ext_method = "prob"))
 Leo2[[2]] <- form_leo(d2)
 
-d3 <- replicate(50, Leo(Ext_method = "lud1"))
+d3 <- replicate(10, Leo(Ext_method = "lud1"))
 Leo2[[3]] <- form_leo(d3)
 
-d4 <- replicate(50, Leo(Ext_method = "lud2"))
+d4 <- replicate(10, Leo(Ext_method = "lud2"))
 Leo2[[4]] <- form_leo(d4)
 
-d5 <- replicate(50, Leo(Ext_method = "stan", bs_I = TRUE))
+d5 <- replicate(10, Leo(Ext_method = "stan", bs_I = TRUE))
 Leo2[[5]] <- form_leo(d5)
 
-d6 <- replicate(50, Leo(Ext_method = "stan", th = 0.3))
+d6 <- replicate(10, Leo(Ext_method = "stan", th = 0.3))
 Leo2[[6]] <- form_leo(d6)
 
-d7 <- replicate(50, Leo(Ext_method = "stan", th = 0.7))
+d7 <- replicate(10, Leo(Ext_method = "stan", th = 0.7))
 Leo2[[7]] <- form_leo(d7)
 
 anyNA(Leo2)
