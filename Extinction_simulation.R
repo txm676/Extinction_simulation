@@ -59,6 +59,7 @@ getk = function(areas, method = "SAR") {
     k
 }
 
+#include here for completeness but used in the study
 getpopmass = function(bodymass) {
     density = bodymass ^ -0.22 # from Russo et al. 2003 AmNat
     density * bodymass
@@ -80,7 +81,8 @@ compete = function(patches, species, areas) {
    species <- species[,-4]
   
     k = getk(areas, "SAR")
-   # popmasses = getpopmass(species[, 'BS'])
+   # popmasses = getpopmass(species[, 'BS'])#as no longer using popmasses in this study
+    
     for (p in 1:length(patches)) {
         if (length(patches[[p]]) > 1) {
             dists = getdistances(species[patches[[p]],])#top row of dists is the sp. pair with shortest distance
@@ -262,14 +264,14 @@ Leo <- function(plot_T = FALSE, plot_F = FALSE, th = 0.5, bs_I = FALSE,
 
     ##create list with the full trait matrix for each island
     islFull <- lapply(isl, function(x) {
-       # if (length(species[x]) == ncol(species)) { ???
-       #     species2 = t(as.matrix(species[x, ]))
-      #  } else {
-            species2 = species[x, ]
-      #  }
-        if (length(x) > 0) rownames(species2) = x
-        species2})
-    # print(islFull)
+      if (length(species[x,]) == ncol(species)) { #check if there is only one species
+          species2 = t(as.matrix(species[x, ]))
+      } else {
+        species2 = species[x, ]
+      }
+      if (length(x) > 0) rownames(species2) = x
+      species2}) 
+
     dendz <- lapply(islFull, function(x) {dendo(x)})
 
     ##make archipelago dataset and dendogram
@@ -670,22 +672,22 @@ Leo2 <- vector("list", length = 7)
 d1 <- replicate(50, Leo(Ext_method = "stan"))
 Leo2[[1]] <- form_leo(d1)
 
-d2 <- replicate(10, Leo(Ext_method = "prob"))
+d2 <- replicate(50, Leo(Ext_method = "prob"))
 Leo2[[2]] <- form_leo(d2)
 
-d3 <- replicate(10, Leo(Ext_method = "lud1"))
+d3 <- replicate(50, Leo(Ext_method = "lud1"))
 Leo2[[3]] <- form_leo(d3)
 
-d4 <- replicate(10, Leo(Ext_method = "lud2"))
+d4 <- replicate(50, Leo(Ext_method = "lud2"))
 Leo2[[4]] <- form_leo(d4)
 
-d5 <- replicate(10, Leo(Ext_method = "stan", bs_I = TRUE))
+d5 <- replicate(50, Leo(Ext_method = "stan", bs_I = TRUE))
 Leo2[[5]] <- form_leo(d5)
 
-d6 <- replicate(10, Leo(Ext_method = "stan", th = 0.3))
+d6 <- replicate(50, Leo(Ext_method = "stan", th = 0.3))
 Leo2[[6]] <- form_leo(d6)
 
-d7 <- replicate(10, Leo(Ext_method = "stan", th = 0.7))
+d7 <- replicate(50, Leo(Ext_method = "stan", th = 0.7))
 Leo2[[7]] <- form_leo(d7)
 
 anyNA(Leo2)
